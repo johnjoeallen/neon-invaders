@@ -856,7 +856,16 @@ impl GameApp {
             0.22 + flash * 0.18,
         );
         let panel = mix_color(color, WHITE, 0.22);
+        let underside = mix_color(color, BLACK, 0.42);
+        let warm_panel = Color::from_rgba(255, 110, 82, 255);
+        let cool_panel = Color::from_rgba(118, 232, 255, 255);
         draw_circle(rect.center().x, rect.center().y + 6.0, 52.0, glow);
+        draw_triangle(
+            vec2(rect.x + rect.w * 0.5, rect.y - 4.0),
+            vec2(rect.x + 20.0, rect.y + rect.h + 12.0),
+            vec2(rect.x + rect.w - 20.0, rect.y + rect.h + 12.0),
+            underside,
+        );
         draw_triangle(
             vec2(rect.x + rect.w * 0.5, rect.y - 16.0),
             vec2(rect.x + 12.0, rect.y + rect.h + 4.0),
@@ -877,11 +886,25 @@ impl GameApp {
             color,
         );
         draw_rectangle(
+            rect.x + rect.w * 0.5 - 18.0,
+            rect.y + rect.h - 6.0,
+            36.0,
+            10.0,
+            underside,
+        );
+        draw_rectangle(
             rect.x + rect.w * 0.5 - 12.0,
             rect.y + 14.0,
             24.0,
             7.0,
             Color::new(panel.r, panel.g, panel.b, 0.9),
+        );
+        draw_rectangle(
+            rect.x + rect.w * 0.5 - 8.0,
+            rect.y + 24.0,
+            16.0,
+            10.0,
+            cool_panel,
         );
         draw_triangle(
             vec2(rect.x + 20.0, rect.y + rect.h + 2.0),
@@ -894,6 +917,18 @@ impl GameApp {
             vec2(rect.x + rect.w - 34.0, rect.y + 10.0),
             vec2(rect.x + rect.w - 42.0, rect.y + rect.h + 2.0),
             Color::from_rgba(255, 84, 74, 255),
+        );
+        draw_triangle(
+            vec2(rect.x + 24.0, rect.y + rect.h + 1.0),
+            vec2(rect.x + 34.0, rect.y + 18.0),
+            vec2(rect.x + 36.0, rect.y + rect.h + 1.0),
+            warm_panel,
+        );
+        draw_triangle(
+            vec2(rect.x + rect.w - 24.0, rect.y + rect.h + 1.0),
+            vec2(rect.x + rect.w - 34.0, rect.y + 18.0),
+            vec2(rect.x + rect.w - 36.0, rect.y + rect.h + 1.0),
+            warm_panel,
         );
         draw_line(
             rect.x + 12.0,
@@ -975,6 +1010,7 @@ impl GameApp {
         let glitter_phase =
             get_time() as f32 * 5.5 + alien.row as f32 * 0.8 + alien.col as f32 * 0.27;
         let glitter = (glitter_phase.sin() * 0.5 + 0.5).powf(2.6);
+        let leg_sway = if alien.frame { 6.0 } else { -6.0 };
         draw_circle(center.x, center.y + 2.0, 44.0, glow);
         draw_circle(
             center.x - 8.0,
@@ -1033,23 +1069,37 @@ impl GameApp {
                     accent_alt,
                 );
                 draw_rectangle(center.x - 8.0, center.y - 1.0, 16.0, 5.0, accent);
-                let left_leg_y = if alien.frame { 24.0 } else { 18.0 };
-                let right_leg_y = if alien.frame { 18.0 } else { 24.0 };
                 draw_line(
-                    center.x - 20.0,
+                    center.x - 15.0,
                     center.y + 10.0,
-                    center.x - 30.0,
-                    center.y + left_leg_y,
+                    center.x - 15.0,
+                    center.y + 22.0,
                     5.0,
                     color,
                 );
                 draw_line(
-                    center.x + 20.0,
+                    center.x + 15.0,
                     center.y + 10.0,
-                    center.x + 30.0,
-                    center.y + right_leg_y,
+                    center.x + 15.0,
+                    center.y + 22.0,
                     5.0,
                     color,
+                );
+                draw_line(
+                    center.x - 15.0,
+                    center.y + 22.0,
+                    center.x - 15.0 + leg_sway,
+                    center.y + 30.0,
+                    4.0,
+                    accent_alt,
+                );
+                draw_line(
+                    center.x + 15.0,
+                    center.y + 22.0,
+                    center.x + 15.0 - leg_sway,
+                    center.y + 30.0,
+                    4.0,
+                    accent_alt,
                 );
                 draw_circle(
                     center.x - 14.0,
@@ -1133,6 +1183,7 @@ impl GameApp {
                 draw_ellipse(center.x, center.y + 2.0, 19.0, 17.0, 0.0, shadow);
                 draw_ellipse(center.x, center.y - 2.0, 18.0, 18.0, 0.0, color);
                 draw_ellipse(center.x, center.y + 1.0, 12.0, 11.0, 0.0, accent_alt);
+                draw_rectangle(center.x - 14.0, center.y + 8.0, 28.0, 8.0, shadow);
                 draw_triangle(
                     vec2(center.x, center.y - 26.0),
                     vec2(center.x - 14.0, center.y - 8.0),
@@ -1151,22 +1202,37 @@ impl GameApp {
                 draw_rectangle(center.x - 6.0, center.y - 12.0, 12.0, 7.0, accent_alt);
                 draw_circle(center.x - 8.0, center.y - 2.0, 3.0, BLACK);
                 draw_circle(center.x + 8.0, center.y - 2.0, 3.0, BLACK);
-                let leg_spread = if alien.frame { 24.0 } else { 18.0 };
                 draw_line(
-                    center.x - 14.0,
+                    center.x - 10.0,
                     center.y + 16.0,
-                    center.x - 26.0,
-                    center.y + leg_spread,
+                    center.x - 10.0,
+                    center.y + 28.0,
                     4.0,
                     color,
                 );
                 draw_line(
-                    center.x + 14.0,
+                    center.x + 10.0,
                     center.y + 16.0,
-                    center.x + 26.0,
-                    center.y + if alien.frame { 18.0 } else { 24.0 },
+                    center.x + 10.0,
+                    center.y + 28.0,
                     4.0,
                     color,
+                );
+                draw_line(
+                    center.x - 10.0,
+                    center.y + 28.0,
+                    center.x - 10.0 + leg_sway,
+                    center.y + 34.0,
+                    3.5,
+                    accent,
+                );
+                draw_line(
+                    center.x + 10.0,
+                    center.y + 28.0,
+                    center.x + 10.0 - leg_sway,
+                    center.y + 34.0,
+                    3.5,
+                    accent,
                 );
                 draw_circle(
                     center.x,
@@ -1252,6 +1318,7 @@ impl GameApp {
                 draw_ellipse(center.x, center.y + 4.0, 16.0, 17.0, 0.0, shadow);
                 draw_ellipse(center.x, center.y + 1.0, 16.0, 20.0, 0.0, color);
                 draw_ellipse(center.x, center.y + 4.0, 9.0, 10.0, 0.0, accent_alt);
+                draw_rectangle(center.x - 11.0, center.y + 10.0, 22.0, 7.0, shadow);
                 draw_triangle(
                     vec2(center.x, center.y - 25.0),
                     vec2(center.x - 14.0, center.y - 5.0),
@@ -1273,23 +1340,37 @@ impl GameApp {
                 draw_rectangle(center.x - 13.0, center.y + 8.0, 26.0, 4.0, accent_alt);
                 draw_circle(center.x - 4.0, center.y + 2.0, 3.0, BLACK);
                 draw_circle(center.x + 4.0, center.y + 2.0, 3.0, BLACK);
-                let left_wing_y = if alien.frame { 31.0 } else { 20.0 };
-                let right_wing_y = if alien.frame { 20.0 } else { 31.0 };
                 draw_line(
-                    center.x - 14.0,
+                    center.x - 8.0,
                     center.y + 12.0,
-                    center.x - 26.0,
-                    center.y + left_wing_y,
+                    center.x - 8.0,
+                    center.y + 24.0,
                     5.0,
                     color,
                 );
                 draw_line(
-                    center.x + 14.0,
+                    center.x + 8.0,
                     center.y + 12.0,
-                    center.x + 26.0,
-                    center.y + right_wing_y,
+                    center.x + 8.0,
+                    center.y + 24.0,
                     5.0,
                     color,
+                );
+                draw_line(
+                    center.x - 8.0,
+                    center.y + 24.0,
+                    center.x - 8.0 + leg_sway,
+                    center.y + 32.0,
+                    4.0,
+                    accent,
+                );
+                draw_line(
+                    center.x + 8.0,
+                    center.y + 24.0,
+                    center.x + 8.0 - leg_sway,
+                    center.y + 32.0,
+                    4.0,
+                    accent,
                 );
                 draw_circle(
                     center.x + 6.0,
@@ -1882,6 +1963,8 @@ impl Bunker {
                 };
                 let bevel = mix_color(base, WHITE, 0.22);
                 let shadow = mix_color(base, BLACK, 0.32);
+                let side_facet = mix_color(base, BLACK, 0.16);
+                let top_facet = mix_color(base, WHITE, 0.34);
                 draw_rectangle(
                     x,
                     y,
@@ -1897,11 +1980,25 @@ impl Bunker {
                     Color::new(shadow.r, shadow.g, shadow.b, 0.85),
                 );
                 draw_rectangle(
+                    x + config::BUNKER_CELL - 6.0,
+                    y + 2.0,
+                    4.0,
+                    config::BUNKER_CELL - 6.0,
+                    Color::new(side_facet.r, side_facet.g, side_facet.b, 0.95),
+                );
+                draw_rectangle(
                     x + 1.0,
                     y + 1.0,
                     config::BUNKER_CELL - 4.0,
                     3.0,
                     Color::new(bevel.r, bevel.g, bevel.b, 0.82),
+                );
+                draw_rectangle(
+                    x + 2.0,
+                    y + 2.0,
+                    config::BUNKER_CELL - 7.0,
+                    2.0,
+                    Color::new(top_facet.r, top_facet.g, top_facet.b, 0.9),
                 );
                 draw_rectangle(
                     x - 1.0,
