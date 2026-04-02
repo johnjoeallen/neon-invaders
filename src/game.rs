@@ -105,6 +105,7 @@ pub struct GameApp {
     kill_window_kills: u32,
     screen_shake: f32,
     shield_ring_timer: f32,
+    rapid_fire_timer: f32,
     pending_restart: bool,
     march_progress: f32,
     march_step: u32,
@@ -142,6 +143,7 @@ impl GameApp {
             kill_window_kills: 0,
             screen_shake: 0.0,
             shield_ring_timer: 0.0,
+            rapid_fire_timer: 0.0,
             pending_restart: false,
             march_progress: 0.0,
             march_step: 0,
@@ -194,6 +196,7 @@ impl GameApp {
         self.update_blast_waves(dt);
         self.screen_shake = (self.screen_shake - dt * 18.0).max(0.0);
         self.shield_ring_timer = (self.shield_ring_timer - dt).max(0.0);
+        self.rapid_fire_timer = (self.rapid_fire_timer - dt).max(0.0);
         self.player.cooldown = (self.player.cooldown - dt).max(0.0);
         self.player.hit_flash = (self.player.hit_flash - dt * 3.0).max(0.0);
         if is_key_pressed(KeyCode::Escape) {
@@ -214,6 +217,7 @@ impl GameApp {
         self.update_blast_waves(dt);
         self.screen_shake = (self.screen_shake - dt * 18.0).max(0.0);
         self.shield_ring_timer = (self.shield_ring_timer - dt).max(0.0);
+        self.rapid_fire_timer = (self.rapid_fire_timer - dt).max(0.0);
         self.player.cooldown = (self.player.cooldown - dt).max(0.0);
         self.player.hit_flash = (self.player.hit_flash - dt * 3.0).max(0.0);
         self.idle_aliens(dt);
@@ -230,6 +234,7 @@ impl GameApp {
         self.update_blast_waves(dt);
         self.screen_shake = (self.screen_shake - dt * 18.0).max(0.0);
         self.shield_ring_timer = (self.shield_ring_timer - dt).max(0.0);
+        self.rapid_fire_timer = (self.rapid_fire_timer - dt).max(0.0);
         self.player.cooldown = (self.player.cooldown - dt).max(0.0);
         self.player.hit_flash = (self.player.hit_flash - dt * 3.0).max(0.0);
         self.idle_aliens(0.0);
@@ -248,6 +253,7 @@ impl GameApp {
         self.update_blast_waves(dt);
         self.screen_shake = (self.screen_shake - dt * 18.0).max(0.0);
         self.shield_ring_timer = (self.shield_ring_timer - dt).max(0.0);
+        self.rapid_fire_timer = (self.rapid_fire_timer - dt).max(0.0);
         self.player.cooldown = (self.player.cooldown - dt).max(0.0);
         self.player.hit_flash = (self.player.hit_flash - dt * 3.0).max(0.0);
         if is_key_pressed(KeyCode::Escape) {
@@ -272,6 +278,7 @@ impl GameApp {
         self.update_blast_waves(dt);
         self.screen_shake = (self.screen_shake - dt * 18.0).max(0.0);
         self.shield_ring_timer = (self.shield_ring_timer - dt).max(0.0);
+        self.rapid_fire_timer = (self.rapid_fire_timer - dt).max(0.0);
         self.player.cooldown = (self.player.cooldown - dt).max(0.0);
         self.player.hit_flash = (self.player.hit_flash - dt * 3.0).max(0.0);
         if is_key_pressed(KeyCode::Escape) {
@@ -329,13 +336,18 @@ impl GameApp {
 
         if is_key_pressed(KeyCode::Space)
             && self.player.cooldown <= 0.0
-            && !self
-                .shots
-                .iter()
-                .any(|shot| shot.from_player && shot.kind == ShotKind::Bolt)
+            && (self.rapid_fire_timer > 0.0
+                || !self
+                    .shots
+                    .iter()
+                    .any(|shot| shot.from_player && shot.kind == ShotKind::Bolt))
         {
             self.spawn_player_shot();
-            self.player.cooldown = config::PLAYER_COOLDOWN;
+            self.player.cooldown = if self.rapid_fire_timer > 0.0 {
+                config::PLAYER_RAPID_FIRE_COOLDOWN
+            } else {
+                config::PLAYER_COOLDOWN
+            };
         }
 
         if is_key_pressed(KeyCode::Up)
@@ -680,6 +692,16 @@ impl GameApp {
                 y - 18.0,
                 3.0,
                 Color::from_rgba(255, 228, 132, 255),
+            );
+        }
+
+        if self.rapid_fire_timer > 0.0 {
+            arcade_text_centered(
+                &format!("RAPID FIRE {:.1}", self.rapid_fire_timer),
+                config::WINDOW_WIDTH * 0.5,
+                104.0,
+                22.0,
+                config::ACCENT_B,
             );
         }
     }
@@ -1730,6 +1752,7 @@ impl GameApp {
         self.particles.clear();
         self.blast_waves.clear();
         self.shield_ring_timer = 0.0;
+        self.rapid_fire_timer = 0.0;
         self.bunkers = build_bunkers();
         self.aliens = build_aliens();
         self.formation_x = config::ALIEN_START_X;
@@ -2082,6 +2105,14 @@ impl GameApp {
         self.kill_window_kills += 1;
         self.screen_shake = self.screen_shake.max(10.0);
         self.spawn_enemy_explosion(center, alien_color(alien.row));
+        if !self
+            .aliens
+            .iter()
+            .any(|other| other.alive && other.row == alien.row)
+        {
+            self.rapid_fire_timer = config::ROW_CLEAR_RAPID_FIRE_TIME;
+            self.spawn_radial_burst(center, 20, config::ACCENT_B, 180.0, 0.7);
+        }
     }
 
     fn toggle_alien_frames(&mut self) {

@@ -9,6 +9,7 @@ pub const PLAYER_WIDTH: f32 = 82.0;
 pub const PLAYER_HEIGHT: f32 = 28.0;
 pub const PLAYER_COOLDOWN: f32 = 0.26;
 pub const PLAYER_BOMB_COOLDOWN: f32 = 0.55;
+pub const PLAYER_RAPID_FIRE_COOLDOWN: f32 = 0.09;
 
 pub const PLAYER_SHOT_SPEED: f32 = 920.0;
 pub const PLAYER_BOMB_SPEED: f32 = 700.0;
@@ -66,6 +67,7 @@ pub const WAVE_CLEAR_TIME: f32 = 1.4;
 pub const GAME_OVER_DELAY: f32 = 0.8;
 pub const BOMB_REWARD_WINDOW: f32 = 5.0;
 pub const BOMB_REWARD_KILLS: u32 = 4;
+pub const ROW_CLEAR_RAPID_FIRE_TIME: f32 = 5.0;
 
 pub const STAR_LAYER_COUNT: usize = 3;
 pub const STARS_PER_LAYER: usize = 48;
