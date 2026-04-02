@@ -1792,7 +1792,7 @@ impl GameApp {
         self.aliens[index].dive_pos = center;
         self.aliens[index].dive_vel = vec2(
             (target_x - center.x) * 0.7,
-            config::ALIEN_DIVE_SPEED + self.wave as f32 * 20.0,
+            config::ALIEN_DIVE_SPEED + self.wave as f32 * 12.0,
         );
         self.aliens[index].dive_angle = 0.0;
         self.aliens[index].fire_flash = 1.0;
@@ -1819,8 +1819,7 @@ impl GameApp {
                 config::ALIEN_SIZE.x * 1.2,
                 config::ALIEN_SIZE.y * 1.5,
             );
-            if dive_rect.overlaps(&player_rect) || alien.dive_pos.y >= config::PLAYER_ZONE_Y - 12.0
-            {
+            if dive_rect.overlaps(&player_rect) {
                 player_hit = true;
                 break;
             }
