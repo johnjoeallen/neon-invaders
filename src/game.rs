@@ -579,20 +579,28 @@ impl GameApp {
     }
 
     fn draw_hud(&self) {
-        draw_arcade_panel(24.0, 18.0, 300.0, 56.0, config::ACCENT_A);
+        draw_arcade_panel(24.0, 18.0, 280.0, 56.0, config::ACCENT_A);
+        draw_arcade_panel(320.0, 18.0, 320.0, 56.0, config::ACCENT_C);
         draw_arcade_panel(
-            config::WINDOW_WIDTH * 0.5 - 150.0,
+            config::WINDOW_WIDTH - 514.0,
             18.0,
-            300.0,
+            150.0,
+            56.0,
+            config::ACCENT_B,
+        );
+        draw_arcade_panel(
+            config::WINDOW_WIDTH - 356.0,
+            18.0,
+            180.0,
             56.0,
             config::ACCENT_C,
         );
         draw_arcade_panel(
-            config::WINDOW_WIDTH - 244.0,
+            config::WINDOW_WIDTH - 168.0,
             18.0,
-            220.0,
+            144.0,
             56.0,
-            config::ACCENT_B,
+            config::ACCENT_A,
         );
         arcade_text(
             &format!("SCORE {:06}", self.score),
@@ -604,7 +612,7 @@ impl GameApp {
         );
         arcade_text(
             &format!("HIGH {:06}", self.high_score),
-            config::WINDOW_WIDTH * 0.5,
+            480.0,
             56.0,
             28.0,
             config::ACCENT_C,
@@ -612,34 +620,55 @@ impl GameApp {
         );
         arcade_text(
             &format!("WAVE {}", self.wave),
-            config::WINDOW_WIDTH - 228.0,
+            config::WINDOW_WIDTH - 498.0,
             56.0,
-            28.0,
+            24.0,
             config::ACCENT_B,
             false,
         );
 
-        let lives_x = 34.0;
-        let lives_y = config::WINDOW_HEIGHT - 28.0;
-        arcade_text("LIVES", lives_x, lives_y, 22.0, config::ACCENT_A, false);
+        let lives_y = 56.0;
+        arcade_text(
+            "LIVES",
+            config::WINDOW_WIDTH - 154.0,
+            lives_y,
+            18.0,
+            config::ACCENT_A,
+            false,
+        );
         for i in 0..self.lives {
-            let x = lives_x + 92.0 + i as f32 * 34.0;
+            let x = config::WINDOW_WIDTH - 145.0 + i as f32 * 24.0;
             draw_triangle(
                 vec2(x, lives_y - 18.0),
                 vec2(x - 11.0, lives_y + 2.0),
                 vec2(x + 11.0, lives_y + 2.0),
                 config::PLAYER_COLOR,
             );
+            draw_triangle(
+                vec2(x, lives_y - 14.0),
+                vec2(x - 7.0, lives_y),
+                vec2(x + 7.0, lives_y),
+                mix_color(config::PLAYER_COLOR, WHITE, 0.3),
+            );
         }
 
-        arcade_text(
-            &format!("BOMBS {}", self.player.bombs),
-            config::WINDOW_WIDTH - 250.0,
-            config::WINDOW_HEIGHT - 28.0,
-            22.0,
-            config::ACCENT_C,
-            false,
-        );
+        let bombs_x = config::WINDOW_WIDTH - 342.0;
+        arcade_text("BOMBS", bombs_x, 56.0, 18.0, config::ACCENT_C, false);
+        for i in 0..self.player.bombs {
+            let x = bombs_x + i as f32 * 26.0;
+            let y = 44.0;
+            draw_circle(x + 10.0, y, 11.0, Color::from_rgba(255, 170, 82, 80));
+            draw_circle(x + 10.0, y, 7.5, config::PLAYER_BOMB_COLOR);
+            draw_circle(x + 10.0, y, 3.5, WHITE);
+            draw_line(
+                x + 10.0,
+                y - 8.0,
+                x + 10.0,
+                y - 18.0,
+                3.0,
+                Color::from_rgba(255, 228, 132, 255),
+            );
+        }
     }
 
     fn draw_overlay(&self) {
