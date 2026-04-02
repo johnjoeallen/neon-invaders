@@ -1256,39 +1256,37 @@ impl GameApp {
                 );
                 draw_circle(center.x - 9.0, center.y - 2.0, 4.0, BLACK);
                 draw_circle(center.x + 9.0, center.y - 2.0, 4.0, BLACK);
-                let left_arm_y = if alien.frame { 18.0 } else { 30.0 };
-                let right_arm_y = if alien.frame { 30.0 } else { 18.0 };
                 draw_line(
-                    center.x - 16.0,
+                    center.x - 12.0,
                     center.y + 8.0,
-                    center.x - 33.0,
-                    center.y + left_arm_y,
+                    center.x - 12.0,
+                    center.y + 22.0,
                     5.0,
                     color,
                 );
                 draw_line(
-                    center.x + 16.0,
+                    center.x + 12.0,
                     center.y + 8.0,
-                    center.x + 33.0,
-                    center.y + right_arm_y,
+                    center.x + 12.0,
+                    center.y + 22.0,
                     5.0,
                     color,
                 );
                 draw_line(
-                    center.x - 10.0,
-                    center.y + 12.0,
-                    center.x - 16.0,
-                    center.y + 24.0,
+                    center.x - 12.0,
+                    center.y + 22.0,
+                    center.x - 12.0 + leg_sway,
+                    center.y + 31.0,
                     4.0,
-                    color,
+                    accent,
                 );
                 draw_line(
-                    center.x + 10.0,
-                    center.y + 12.0,
-                    center.x + 16.0,
-                    center.y + 24.0,
+                    center.x + 12.0,
+                    center.y + 22.0,
+                    center.x + 12.0 - leg_sway,
+                    center.y + 31.0,
                     4.0,
-                    color,
+                    accent,
                 );
                 draw_circle(
                     center.x + 12.0,
@@ -1431,23 +1429,37 @@ impl GameApp {
                     vec2(center.x + sweep * 14.0 - 4.0, center.y - 1.0),
                     wing_glint,
                 );
-                let wing_left = if alien.frame { 30.0 } else { 18.0 };
-                let wing_right = if alien.frame { 18.0 } else { 30.0 };
                 draw_line(
-                    center.x - 20.0,
+                    center.x - 12.0,
                     center.y + 10.0,
-                    center.x - 34.0,
-                    center.y + wing_left,
+                    center.x - 12.0,
+                    center.y + 24.0,
                     5.0,
                     color,
                 );
                 draw_line(
-                    center.x + 20.0,
+                    center.x + 12.0,
                     center.y + 10.0,
-                    center.x + 34.0,
-                    center.y + wing_right,
+                    center.x + 12.0,
+                    center.y + 24.0,
                     5.0,
                     color,
+                );
+                draw_line(
+                    center.x - 12.0,
+                    center.y + 24.0,
+                    center.x - 12.0 + leg_sway,
+                    center.y + 33.0,
+                    4.0,
+                    accent_alt,
+                );
+                draw_line(
+                    center.x + 12.0,
+                    center.y + 24.0,
+                    center.x + 12.0 - leg_sway,
+                    center.y + 33.0,
+                    4.0,
+                    accent_alt,
                 );
                 draw_circle(
                     center.x,
