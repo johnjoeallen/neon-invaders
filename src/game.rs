@@ -46,6 +46,10 @@ struct Alien {
     alive: bool,
     frame: bool,
     fire_flash: f32,
+    diving: bool,
+    dive_pos: Vec2,
+    dive_vel: Vec2,
+    dive_angle: f32,
 }
 
 #[derive(Clone)]
@@ -105,6 +109,7 @@ pub struct GameApp {
     march_progress: f32,
     march_step: u32,
     pass_count: u32,
+    dive_timer: f32,
     sounds: Option<SoundBank>,
 }
 
@@ -141,6 +146,7 @@ impl GameApp {
             march_progress: 0.0,
             march_step: 0,
             pass_count: 0,
+            dive_timer: config::ALIEN_DIVE_BASE_INTERVAL,
             sounds: SoundBank::load().await,
         };
         app.reset_for_new_run();
@@ -357,6 +363,7 @@ impl GameApp {
         for alien in &mut self.aliens {
             alien.fire_flash = (alien.fire_flash - dt * 4.5).max(0.0);
         }
+        self.update_diving_aliens(dt);
         let alive = self.alive_aliens();
         let speed_scale =
             1.0 + (1.0 - alive as f32 / (config::ALIEN_ROWS * config::ALIEN_COLS) as f32) * 2.4;
@@ -392,6 +399,12 @@ impl GameApp {
                 140.0,
                 2.0,
             );
+        }
+
+        self.dive_timer -= dt;
+        if self.dive_timer <= 0.0 && !self.aliens.iter().any(|alien| alien.alive && alien.diving) {
+            self.spawn_diving_alien();
+            self.schedule_next_dive();
         }
     }
 
@@ -1020,6 +1033,10 @@ impl GameApp {
     }
 
     fn draw_alien(&self, alien: Alien, offset: Vec2) {
+        if alien.diving {
+            self.draw_diving_alien(alien, offset);
+            return;
+        }
         let rect = self.alien_rect(alien);
         let color = alien_color(alien.row);
         let center = rect.center() + offset;
@@ -1557,6 +1574,49 @@ impl GameApp {
         }
     }
 
+    fn draw_diving_alien(&self, alien: Alien, offset: Vec2) {
+        let center = alien.dive_pos + offset;
+        let color = alien_color(alien.row);
+        let accent = mix_color(color, config::ACCENT_B, 0.45);
+        let canopy = mix_color(color, WHITE, 0.65);
+        let angle = alien.dive_angle;
+        let glow = Color::new(color.r, color.g, color.b, 0.24 + alien.fire_flash * 0.16);
+        draw_circle(center.x, center.y, 42.0, glow);
+
+        let body_top = rotated_point(vec2(0.0, -24.0), angle) + center;
+        let body_left = rotated_point(vec2(-19.0, 8.0), angle) + center;
+        let body_right = rotated_point(vec2(19.0, 8.0), angle) + center;
+        draw_triangle(body_top, body_left, body_right, color);
+
+        let belly_top = rotated_point(vec2(0.0, -8.0), angle) + center;
+        let belly_left = rotated_point(vec2(-14.0, 11.0), angle) + center;
+        let belly_right = rotated_point(vec2(14.0, 11.0), angle) + center;
+        draw_triangle(belly_top, belly_left, belly_right, accent);
+
+        let canopy_center = rotated_point(vec2(0.0, -10.0), angle) + center;
+        draw_circle(canopy_center.x, canopy_center.y, 8.0, canopy);
+
+        let wing_l_a = rotated_point(vec2(-10.0, -4.0), angle) + center;
+        let wing_l_b = rotated_point(vec2(-31.0, 2.0), angle) + center;
+        let wing_l_c = rotated_point(vec2(-16.0, 16.0), angle) + center;
+        draw_triangle(wing_l_a, wing_l_b, wing_l_c, accent);
+        let wing_r_a = rotated_point(vec2(10.0, -4.0), angle) + center;
+        let wing_r_b = rotated_point(vec2(31.0, 2.0), angle) + center;
+        let wing_r_c = rotated_point(vec2(16.0, 16.0), angle) + center;
+        draw_triangle(wing_r_a, wing_r_b, wing_r_c, accent);
+
+        let leg1_a = rotated_point(vec2(-10.0, 10.0), angle) + center;
+        let leg1_b = rotated_point(vec2(-10.0, 24.0), angle) + center;
+        let leg1_c = rotated_point(vec2(-16.0, 33.0), angle) + center;
+        draw_line(leg1_a.x, leg1_a.y, leg1_b.x, leg1_b.y, 4.0, color);
+        draw_line(leg1_b.x, leg1_b.y, leg1_c.x, leg1_c.y, 3.0, canopy);
+        let leg2_a = rotated_point(vec2(10.0, 10.0), angle) + center;
+        let leg2_b = rotated_point(vec2(10.0, 24.0), angle) + center;
+        let leg2_c = rotated_point(vec2(16.0, 33.0), angle) + center;
+        draw_line(leg2_a.x, leg2_a.y, leg2_b.x, leg2_b.y, 4.0, color);
+        draw_line(leg2_b.x, leg2_b.y, leg2_c.x, leg2_c.y, 3.0, canopy);
+    }
+
     fn update_particles(&mut self, dt: f32) {
         for particle in &mut self.particles {
             particle.life -= dt;
@@ -1678,10 +1738,89 @@ impl GameApp {
         self.march_progress = 0.0;
         self.march_step = 0;
         self.pass_count = 0;
+        self.dive_timer = config::ALIEN_DIVE_BASE_INTERVAL;
         self.kill_window_timer = config::BOMB_REWARD_WINDOW;
         self.kill_window_kills = 0;
         self.enemy_fire_timer =
             (config::ENEMY_FIRE_BASE_INTERVAL - self.wave as f32 * 0.07).max(0.5);
+    }
+
+    fn schedule_next_dive(&mut self) {
+        let base = (config::ALIEN_DIVE_BASE_INTERVAL - self.wave as f32 * 0.35)
+            .max(config::ALIEN_DIVE_MIN_INTERVAL);
+        self.dive_timer = rand::gen_range(base * 0.7, base * 1.25);
+    }
+
+    fn spawn_diving_alien(&mut self) {
+        let mut candidates = Vec::new();
+        for (index, alien) in self.aliens.iter().enumerate() {
+            if alien.alive && !alien.diving && alien.row >= 1 {
+                candidates.push(index);
+            }
+        }
+        if candidates.is_empty() {
+            return;
+        }
+        let index = candidates[rand::gen_range(0, candidates.len())];
+        let rect = self.alien_rect(self.aliens[index]);
+        let center = rect.center();
+        let target_x = self.player.x + rand::gen_range(-80.0, 80.0);
+        self.aliens[index].diving = true;
+        self.aliens[index].dive_pos = center;
+        self.aliens[index].dive_vel = vec2(
+            (target_x - center.x) * 0.7,
+            config::ALIEN_DIVE_SPEED + self.wave as f32 * 20.0,
+        );
+        self.aliens[index].dive_angle = 0.0;
+        self.aliens[index].fire_flash = 1.0;
+        self.screen_shake = self.screen_shake.max(5.0);
+        self.spawn_radial_burst(center, 10, alien_color(self.aliens[index].row), 120.0, 0.45);
+    }
+
+    fn update_diving_aliens(&mut self, dt: f32) {
+        let player_rect = self.player_rect();
+        let player_center = player_rect.center();
+        let mut player_hit = false;
+        for alien in &mut self.aliens {
+            if !alien.alive || !alien.diving {
+                continue;
+            }
+            let steer = (player_center.x - alien.dive_pos.x) * config::ALIEN_DIVE_TURN_RATE;
+            alien.dive_vel.x += steer * dt;
+            alien.dive_pos += alien.dive_vel * dt;
+            alien.dive_angle += config::ALIEN_DIVE_SPIN_SPEED * dt;
+            alien.fire_flash = alien.fire_flash.max(0.25);
+            let dive_rect = Rect::new(
+                alien.dive_pos.x - config::ALIEN_SIZE.x * 0.6,
+                alien.dive_pos.y - config::ALIEN_SIZE.y * 0.75,
+                config::ALIEN_SIZE.x * 1.2,
+                config::ALIEN_SIZE.y * 1.5,
+            );
+            if dive_rect.overlaps(&player_rect) || alien.dive_pos.y >= config::PLAYER_ZONE_Y - 12.0
+            {
+                player_hit = true;
+                break;
+            }
+        }
+
+        if player_hit {
+            self.trigger_game_over();
+            return;
+        }
+
+        for alien in &mut self.aliens {
+            if alien.alive
+                && alien.diving
+                && (alien.dive_pos.y > config::WINDOW_HEIGHT + 140.0
+                    || alien.dive_pos.x < -120.0
+                    || alien.dive_pos.x > config::WINDOW_WIDTH + 120.0)
+            {
+                alien.diving = false;
+                alien.dive_pos = Vec2::ZERO;
+                alien.dive_vel = Vec2::ZERO;
+                alien.dive_angle = 0.0;
+            }
+        }
     }
 
     fn spawn_player_shot(&mut self) {
@@ -1737,11 +1876,9 @@ impl GameApp {
         for col in 0..config::ALIEN_COLS {
             let mut candidate = None;
             for row in (0..config::ALIEN_ROWS).rev() {
-                if let Some(alien) = self
-                    .aliens
-                    .iter()
-                    .find(|alien| alien.col == col && alien.row == row && alien.alive)
-                {
+                if let Some(alien) = self.aliens.iter().find(|alien| {
+                    alien.col == col && alien.row == row && alien.alive && !alien.diving
+                }) {
                     candidate = Some(*alien);
                     break;
                 }
@@ -1983,6 +2120,9 @@ impl GameApp {
     }
 
     fn alien_rect(&self, alien: Alien) -> Rect {
+        if alien.diving {
+            return self.diving_alien_rect(alien);
+        }
         Rect::new(
             self.formation_x + alien.col as f32 * config::ALIEN_SPACING_X
                 - config::ALIEN_SIZE.x * 0.5,
@@ -1990,6 +2130,15 @@ impl GameApp {
                 - config::ALIEN_SIZE.y * 0.5,
             config::ALIEN_SIZE.x,
             config::ALIEN_SIZE.y,
+        )
+    }
+
+    fn diving_alien_rect(&self, alien: Alien) -> Rect {
+        Rect::new(
+            alien.dive_pos.x - config::ALIEN_SIZE.x * 0.6,
+            alien.dive_pos.y - config::ALIEN_SIZE.y * 0.75,
+            config::ALIEN_SIZE.x * 1.2,
+            config::ALIEN_SIZE.y * 1.5,
         )
     }
 
@@ -2006,14 +2155,19 @@ impl GameApp {
         let mut left = f32::MAX;
         let mut right = f32::MIN;
         let mut bottom = f32::MIN;
+        let mut found = false;
         for alien in &self.aliens {
-            if !alien.alive {
+            if !alien.alive || alien.diving {
                 continue;
             }
+            found = true;
             let rect = self.alien_rect(*alien);
             left = left.min(rect.x);
             right = right.max(rect.x + rect.w);
             bottom = bottom.max(rect.y + rect.h);
+        }
+        if !found {
+            return (0.0, 0.0, 0.0);
         }
         (left, right, bottom)
     }
@@ -2207,6 +2361,10 @@ fn build_aliens() -> Vec<Alien> {
                 alive: true,
                 frame: false,
                 fire_flash: 0.0,
+                diving: false,
+                dive_pos: Vec2::ZERO,
+                dive_vel: Vec2::ZERO,
+                dive_angle: 0.0,
             });
         }
     }
@@ -2397,6 +2555,14 @@ fn mix_color(a: Color, b: Color, t: f32) -> Color {
         a.g + (b.g - a.g) * t,
         a.b + (b.b - a.b) * t,
         a.a + (b.a - a.a) * t,
+    )
+}
+
+fn rotated_point(point: Vec2, angle: f32) -> Vec2 {
+    let (sin_a, cos_a) = angle.sin_cos();
+    vec2(
+        point.x * cos_a - point.y * sin_a,
+        point.x * sin_a + point.y * cos_a,
     )
 }
 

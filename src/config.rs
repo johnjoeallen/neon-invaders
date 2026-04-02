@@ -41,6 +41,11 @@ pub const ALIEN_BASE_SPEED: f32 = 82.0;
 pub const ALIEN_STEP_DOWN: f32 = 28.0;
 pub const ALIEN_STEP_DOWN_PASS_BONUS: f32 = 1.5;
 pub const ALIEN_MARCH_DISTANCE: f32 = 54.0;
+pub const ALIEN_DIVE_BASE_INTERVAL: f32 = 8.0;
+pub const ALIEN_DIVE_MIN_INTERVAL: f32 = 3.8;
+pub const ALIEN_DIVE_SPEED: f32 = 340.0;
+pub const ALIEN_DIVE_TURN_RATE: f32 = 2.8;
+pub const ALIEN_DIVE_SPIN_SPEED: f32 = 9.5;
 pub const ENEMY_FIRE_BASE_INTERVAL: f32 = 1.25;
 pub const ENEMY_FIRE_MIN_INTERVAL: f32 = 0.38;
 
