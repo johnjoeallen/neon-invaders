@@ -965,16 +965,29 @@ impl GameApp {
             3 => Color::from_rgba(255, 140, 196, 255),
             _ => Color::from_rgba(255, 235, 145, 255),
         };
+        let accent_alt = match alien.row {
+            0 => Color::from_rgba(116, 226, 255, 255),
+            1 => Color::from_rgba(255, 124, 196, 255),
+            2 => Color::from_rgba(255, 166, 74, 255),
+            3 => Color::from_rgba(138, 255, 178, 255),
+            _ => Color::from_rgba(112, 212, 255, 255),
+        };
         let glitter_phase =
             get_time() as f32 * 5.5 + alien.row as f32 * 0.8 + alien.col as f32 * 0.27;
         let glitter = (glitter_phase.sin() * 0.5 + 0.5).powf(2.6);
         draw_circle(center.x, center.y + 2.0, 44.0, glow);
-        draw_circle(center.x - 8.0, center.y - 10.0, 20.0, Color::new(highlight.r, highlight.g, highlight.b, 0.12));
+        draw_circle(
+            center.x - 8.0,
+            center.y - 10.0,
+            20.0,
+            Color::new(highlight.r, highlight.g, highlight.b, 0.12),
+        );
 
         match alien.row {
             0 => {
                 draw_ellipse(center.x, center.y + 5.0, 25.0, 13.0, 0.0, shadow);
                 draw_ellipse(center.x, center.y + 1.0, 24.0, 16.0, 0.0, color);
+                draw_ellipse(center.x, center.y + 4.0, 18.0, 8.0, 0.0, accent_alt);
                 draw_ellipse(
                     center.x,
                     center.y - 4.0,
@@ -996,6 +1009,12 @@ impl GameApp {
                     accent,
                 );
                 draw_triangle(
+                    vec2(center.x - 9.0, center.y + 0.0),
+                    vec2(center.x - 22.0, center.y + 9.0),
+                    vec2(center.x - 9.0, center.y + 7.0),
+                    accent_alt,
+                );
+                draw_triangle(
                     vec2(center.x + 18.0, center.y - 3.0),
                     vec2(center.x + 35.0, center.y + 10.0),
                     vec2(center.x + 18.0, center.y + 8.0),
@@ -1007,6 +1026,13 @@ impl GameApp {
                     vec2(center.x + 15.0, center.y + 5.0),
                     accent,
                 );
+                draw_triangle(
+                    vec2(center.x + 9.0, center.y + 0.0),
+                    vec2(center.x + 22.0, center.y + 9.0),
+                    vec2(center.x + 9.0, center.y + 7.0),
+                    accent_alt,
+                );
+                draw_rectangle(center.x - 8.0, center.y - 1.0, 16.0, 5.0, accent);
                 let left_leg_y = if alien.frame { 24.0 } else { 18.0 };
                 let right_leg_y = if alien.frame { 18.0 } else { 24.0 };
                 draw_line(
@@ -1051,8 +1077,15 @@ impl GameApp {
                     vec2(center.x + 17.0, center.y + 2.0),
                     Color::new(highlight.r, highlight.g, highlight.b, 0.62),
                 );
+                draw_triangle(
+                    vec2(center.x, center.y - 7.0),
+                    vec2(center.x - 10.0, center.y + 7.0),
+                    vec2(center.x + 10.0, center.y + 7.0),
+                    accent_alt,
+                );
                 draw_circle(center.x - 14.0, center.y + 2.0, 4.0, accent);
                 draw_circle(center.x + 14.0, center.y + 2.0, 4.0, accent);
+                draw_rectangle(center.x - 19.0, center.y + 5.0, 38.0, 4.0, accent_alt);
                 draw_circle(center.x - 9.0, center.y - 2.0, 4.0, BLACK);
                 draw_circle(center.x + 9.0, center.y - 2.0, 4.0, BLACK);
                 let left_arm_y = if alien.frame { 18.0 } else { 30.0 };
@@ -1099,6 +1132,7 @@ impl GameApp {
             2 => {
                 draw_ellipse(center.x, center.y + 2.0, 19.0, 17.0, 0.0, shadow);
                 draw_ellipse(center.x, center.y - 2.0, 18.0, 18.0, 0.0, color);
+                draw_ellipse(center.x, center.y + 1.0, 12.0, 11.0, 0.0, accent_alt);
                 draw_triangle(
                     vec2(center.x, center.y - 26.0),
                     vec2(center.x - 14.0, center.y - 8.0),
@@ -1114,6 +1148,7 @@ impl GameApp {
                     Color::new(highlight.r, highlight.g, highlight.b, 0.62),
                 );
                 draw_rectangle(center.x - 12.0, center.y + 3.0, 24.0, 6.0, accent);
+                draw_rectangle(center.x - 6.0, center.y - 12.0, 12.0, 7.0, accent_alt);
                 draw_circle(center.x - 8.0, center.y - 2.0, 3.0, BLACK);
                 draw_circle(center.x + 8.0, center.y - 2.0, 3.0, BLACK);
                 let leg_spread = if alien.frame { 24.0 } else { 18.0 };
@@ -1159,8 +1194,29 @@ impl GameApp {
                     vec2(center.x + 19.0, center.y + 1.0),
                     Color::new(highlight.r, highlight.g, highlight.b, 0.62),
                 );
-                draw_line(center.x - 10.0, center.y - 5.0, center.x, center.y + 8.0, 4.0, accent);
-                draw_line(center.x + 10.0, center.y - 5.0, center.x, center.y + 8.0, 4.0, accent);
+                draw_triangle(
+                    vec2(center.x, center.y - 8.0),
+                    vec2(center.x - 14.0, center.y + 5.0),
+                    vec2(center.x + 14.0, center.y + 5.0),
+                    accent_alt,
+                );
+                draw_line(
+                    center.x - 10.0,
+                    center.y - 5.0,
+                    center.x,
+                    center.y + 8.0,
+                    4.0,
+                    accent,
+                );
+                draw_line(
+                    center.x + 10.0,
+                    center.y - 5.0,
+                    center.x,
+                    center.y + 8.0,
+                    4.0,
+                    accent,
+                );
+                draw_rectangle(center.x - 18.0, center.y + 6.0, 36.0, 3.0, accent);
                 let wing_left = if alien.frame { 30.0 } else { 18.0 };
                 let wing_right = if alien.frame { 18.0 } else { 30.0 };
                 draw_line(
@@ -1195,6 +1251,7 @@ impl GameApp {
             _ => {
                 draw_ellipse(center.x, center.y + 4.0, 16.0, 17.0, 0.0, shadow);
                 draw_ellipse(center.x, center.y + 1.0, 16.0, 20.0, 0.0, color);
+                draw_ellipse(center.x, center.y + 4.0, 9.0, 10.0, 0.0, accent_alt);
                 draw_triangle(
                     vec2(center.x, center.y - 25.0),
                     vec2(center.x - 14.0, center.y - 5.0),
@@ -1213,6 +1270,7 @@ impl GameApp {
                     vec2(center.x + 10.0, center.y - 1.0),
                     accent,
                 );
+                draw_rectangle(center.x - 13.0, center.y + 8.0, 26.0, 4.0, accent_alt);
                 draw_circle(center.x - 4.0, center.y + 2.0, 3.0, BLACK);
                 draw_circle(center.x + 4.0, center.y + 2.0, 3.0, BLACK);
                 let left_wing_y = if alien.frame { 31.0 } else { 20.0 };
@@ -2017,20 +2075,6 @@ fn mix_color(a: Color, b: Color, t: f32) -> Color {
     )
 }
 
-fn draw_text_centered(text: &str, x: f32, y: f32, font_size: f32, color: Color) {
-    let dims = measure_text(text, None, font_size as u16, 1.0);
-    draw_text_ex(
-        text,
-        x - dims.width * 0.5,
-        y,
-        TextParams {
-            font_size: font_size as u16,
-            color,
-            ..Default::default()
-        },
-    );
-}
-
 fn arcade_text(text: &str, x: f32, y: f32, font_size: f32, color: Color, centered: bool) {
     let dims = measure_text(text, None, font_size as u16, 1.0);
     let draw_x = if centered { x - dims.width * 0.5 } else { x };
@@ -2138,39 +2182,6 @@ fn draw_arcade_panel(x: f32, y: f32, w: f32, h: f32, color: Color) {
         2.0,
         Color::new(color.r, color.g, color.b, 0.75),
     );
-}
-
-fn neon_text(text: &str, x: f32, y: f32, font_size: f32, color: Color, centered: bool) {
-    let dims = measure_text(text, None, font_size as u16, 1.0);
-    let draw_x = if centered { x - dims.width * 0.5 } else { x };
-    draw_text_ex(
-        text,
-        draw_x,
-        y,
-        TextParams {
-            font_size: font_size as u16,
-            color: Color::new(color.r, color.g, color.b, 0.18),
-            ..Default::default()
-        },
-    );
-    draw_text_ex(
-        text,
-        draw_x,
-        y,
-        TextParams {
-            font_size: font_size as u16,
-            color,
-            ..Default::default()
-        },
-    );
-}
-
-fn hud_style(font_size: f32) -> TextParams<'static> {
-    TextParams {
-        font_size: font_size as u16,
-        color: config::HUD_COLOR,
-        ..Default::default()
-    }
 }
 
 fn high_score_path() -> Option<PathBuf> {
