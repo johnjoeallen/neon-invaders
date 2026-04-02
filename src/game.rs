@@ -993,6 +993,8 @@ impl GameApp {
         let glow = Color::new(color.r, color.g, color.b, 0.18);
         let highlight = mix_color(color, WHITE, 0.42);
         let shadow = mix_color(color, BLACK, 0.28);
+        let belly = mix_color(color, BLACK, 0.48);
+        let canopy = mix_color(color, WHITE, 0.68);
         let accent = match alien.row {
             0 => Color::from_rgba(255, 92, 82, 255),
             1 => Color::from_rgba(255, 231, 120, 255),
@@ -1023,15 +1025,9 @@ impl GameApp {
             0 => {
                 draw_ellipse(center.x, center.y + 5.0, 25.0, 13.0, 0.0, shadow);
                 draw_ellipse(center.x, center.y + 1.0, 24.0, 16.0, 0.0, color);
+                draw_ellipse(center.x, center.y + 8.0, 21.0, 6.0, 0.0, belly);
                 draw_ellipse(center.x, center.y + 4.0, 18.0, 8.0, 0.0, accent_alt);
-                draw_ellipse(
-                    center.x,
-                    center.y - 4.0,
-                    16.0,
-                    7.0,
-                    0.0,
-                    Color::new(highlight.r, highlight.g, highlight.b, 0.7),
-                );
+                draw_ellipse(center.x, center.y - 4.0, 16.0, 7.0, 0.0, canopy);
                 draw_triangle(
                     vec2(center.x - 18.0, center.y - 3.0),
                     vec2(center.x - 35.0, center.y + 10.0),
@@ -1069,6 +1065,22 @@ impl GameApp {
                     accent_alt,
                 );
                 draw_rectangle(center.x - 8.0, center.y - 1.0, 16.0, 5.0, accent);
+                draw_line(
+                    center.x - 19.0,
+                    center.y - 2.0,
+                    center.x - 31.0,
+                    center.y + 8.0,
+                    2.0,
+                    canopy,
+                );
+                draw_line(
+                    center.x + 19.0,
+                    center.y - 2.0,
+                    center.x + 31.0,
+                    center.y + 8.0,
+                    2.0,
+                    canopy,
+                );
                 draw_line(
                     center.x - 15.0,
                     center.y + 10.0,
@@ -1125,7 +1137,13 @@ impl GameApp {
                     vec2(center.x, center.y - 16.0),
                     vec2(center.x - 17.0, center.y + 2.0),
                     vec2(center.x + 17.0, center.y + 2.0),
-                    Color::new(highlight.r, highlight.g, highlight.b, 0.62),
+                    canopy,
+                );
+                draw_triangle(
+                    vec2(center.x, center.y + 6.0),
+                    vec2(center.x - 18.0, center.y + 12.0),
+                    vec2(center.x + 18.0, center.y + 12.0),
+                    belly,
                 );
                 draw_triangle(
                     vec2(center.x, center.y - 7.0),
@@ -1136,6 +1154,22 @@ impl GameApp {
                 draw_circle(center.x - 14.0, center.y + 2.0, 4.0, accent);
                 draw_circle(center.x + 14.0, center.y + 2.0, 4.0, accent);
                 draw_rectangle(center.x - 19.0, center.y + 5.0, 38.0, 4.0, accent_alt);
+                draw_line(
+                    center.x - 20.0,
+                    center.y - 4.0,
+                    center.x - 8.0,
+                    center.y + 3.0,
+                    2.0,
+                    canopy,
+                );
+                draw_line(
+                    center.x + 20.0,
+                    center.y - 4.0,
+                    center.x + 8.0,
+                    center.y + 3.0,
+                    2.0,
+                    canopy,
+                );
                 draw_circle(center.x - 9.0, center.y - 2.0, 4.0, BLACK);
                 draw_circle(center.x + 9.0, center.y - 2.0, 4.0, BLACK);
                 let left_arm_y = if alien.frame { 18.0 } else { 30.0 };
@@ -1182,6 +1216,7 @@ impl GameApp {
             2 => {
                 draw_ellipse(center.x, center.y + 2.0, 19.0, 17.0, 0.0, shadow);
                 draw_ellipse(center.x, center.y - 2.0, 18.0, 18.0, 0.0, color);
+                draw_ellipse(center.x, center.y + 7.0, 15.0, 7.0, 0.0, belly);
                 draw_ellipse(center.x, center.y + 1.0, 12.0, 11.0, 0.0, accent_alt);
                 draw_rectangle(center.x - 14.0, center.y + 8.0, 28.0, 8.0, shadow);
                 draw_triangle(
@@ -1190,16 +1225,10 @@ impl GameApp {
                     vec2(center.x + 14.0, center.y - 8.0),
                     color,
                 );
-                draw_ellipse(
-                    center.x,
-                    center.y - 8.0,
-                    11.0,
-                    7.0,
-                    0.0,
-                    Color::new(highlight.r, highlight.g, highlight.b, 0.62),
-                );
+                draw_ellipse(center.x, center.y - 8.0, 11.0, 7.0, 0.0, canopy);
                 draw_rectangle(center.x - 12.0, center.y + 3.0, 24.0, 6.0, accent);
                 draw_rectangle(center.x - 6.0, center.y - 12.0, 12.0, 7.0, accent_alt);
+                draw_rectangle(center.x - 10.0, center.y - 1.0, 20.0, 5.0, canopy);
                 draw_circle(center.x - 8.0, center.y - 2.0, 3.0, BLACK);
                 draw_circle(center.x + 8.0, center.y - 2.0, 3.0, BLACK);
                 draw_line(
@@ -1258,7 +1287,13 @@ impl GameApp {
                     vec2(center.x, center.y - 16.0),
                     vec2(center.x - 19.0, center.y + 1.0),
                     vec2(center.x + 19.0, center.y + 1.0),
-                    Color::new(highlight.r, highlight.g, highlight.b, 0.62),
+                    canopy,
+                );
+                draw_triangle(
+                    vec2(center.x, center.y + 5.0),
+                    vec2(center.x - 24.0, center.y + 11.0),
+                    vec2(center.x + 24.0, center.y + 11.0),
+                    belly,
                 );
                 draw_triangle(
                     vec2(center.x, center.y - 8.0),
@@ -1283,6 +1318,22 @@ impl GameApp {
                     accent,
                 );
                 draw_rectangle(center.x - 18.0, center.y + 6.0, 36.0, 3.0, accent);
+                draw_line(
+                    center.x - 22.0,
+                    center.y - 7.0,
+                    center.x - 8.0,
+                    center.y + 2.0,
+                    2.0,
+                    canopy,
+                );
+                draw_line(
+                    center.x + 22.0,
+                    center.y - 7.0,
+                    center.x + 8.0,
+                    center.y + 2.0,
+                    2.0,
+                    canopy,
+                );
                 let wing_left = if alien.frame { 30.0 } else { 18.0 };
                 let wing_right = if alien.frame { 18.0 } else { 30.0 };
                 draw_line(
@@ -1317,6 +1368,7 @@ impl GameApp {
             _ => {
                 draw_ellipse(center.x, center.y + 4.0, 16.0, 17.0, 0.0, shadow);
                 draw_ellipse(center.x, center.y + 1.0, 16.0, 20.0, 0.0, color);
+                draw_ellipse(center.x, center.y + 9.0, 12.0, 7.0, 0.0, belly);
                 draw_ellipse(center.x, center.y + 4.0, 9.0, 10.0, 0.0, accent_alt);
                 draw_rectangle(center.x - 11.0, center.y + 10.0, 22.0, 7.0, shadow);
                 draw_triangle(
@@ -1329,7 +1381,7 @@ impl GameApp {
                     vec2(center.x, center.y - 16.0),
                     vec2(center.x - 12.0, center.y + 1.0),
                     vec2(center.x + 12.0, center.y + 1.0),
-                    Color::new(highlight.r, highlight.g, highlight.b, 0.7),
+                    canopy,
                 );
                 draw_triangle(
                     vec2(center.x, center.y - 12.0),
@@ -1338,6 +1390,14 @@ impl GameApp {
                     accent,
                 );
                 draw_rectangle(center.x - 13.0, center.y + 8.0, 26.0, 4.0, accent_alt);
+                draw_line(
+                    center.x,
+                    center.y - 16.0,
+                    center.x,
+                    center.y - 2.0,
+                    2.0,
+                    canopy,
+                );
                 draw_circle(center.x - 4.0, center.y + 2.0, 3.0, BLACK);
                 draw_circle(center.x + 4.0, center.y + 2.0, 3.0, BLACK);
                 draw_line(
