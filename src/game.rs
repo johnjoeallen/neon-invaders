@@ -990,11 +990,27 @@ impl GameApp {
         let rect = self.alien_rect(alien);
         let color = alien_color(alien.row);
         let center = rect.center() + offset;
-        let glow = Color::new(color.r, color.g, color.b, 0.18);
         let highlight = mix_color(color, WHITE, 0.42);
         let shadow = mix_color(color, BLACK, 0.28);
         let belly = mix_color(color, BLACK, 0.48);
         let canopy = mix_color(color, WHITE, 0.68);
+        let sweep_phase =
+            get_time() as f32 * 2.8 + self.march_step as f32 * 0.75 + alien.col as f32 * 0.18;
+        let sweep = (sweep_phase.sin() * 0.5 + 0.5).powf(2.2);
+        let flicker = if alien.frame { 1.0 } else { 0.0 };
+        let glow = Color::new(
+            color.r,
+            color.g,
+            color.b,
+            0.16 + sweep * 0.08 + flicker * 0.03,
+        );
+        let canopy_sweep = mix_color(canopy, WHITE, 0.18 + sweep * 0.55);
+        let wing_glint = Color::new(
+            highlight.r,
+            highlight.g,
+            highlight.b,
+            0.16 + sweep * 0.28 + flicker * 0.08,
+        );
         let accent = match alien.row {
             0 => Color::from_rgba(255, 92, 82, 255),
             1 => Color::from_rgba(255, 231, 120, 255),
@@ -1018,7 +1034,7 @@ impl GameApp {
             center.x - 8.0,
             center.y - 10.0,
             20.0,
-            Color::new(highlight.r, highlight.g, highlight.b, 0.12),
+            Color::new(highlight.r, highlight.g, highlight.b, 0.10 + sweep * 0.08),
         );
 
         match alien.row {
@@ -1027,7 +1043,15 @@ impl GameApp {
                 draw_ellipse(center.x, center.y + 1.0, 24.0, 16.0, 0.0, color);
                 draw_ellipse(center.x, center.y + 8.0, 21.0, 6.0, 0.0, belly);
                 draw_ellipse(center.x, center.y + 4.0, 18.0, 8.0, 0.0, accent_alt);
-                draw_ellipse(center.x, center.y - 4.0, 16.0, 7.0, 0.0, canopy);
+                draw_ellipse(center.x, center.y - 4.0, 16.0, 7.0, 0.0, canopy_sweep);
+                draw_ellipse(
+                    center.x + sweep * 7.0 - 3.5,
+                    center.y - 6.0,
+                    4.0,
+                    2.0,
+                    0.0,
+                    wing_glint,
+                );
                 draw_triangle(
                     vec2(center.x - 18.0, center.y - 3.0),
                     vec2(center.x - 35.0, center.y + 10.0),
@@ -1071,7 +1095,7 @@ impl GameApp {
                     center.x - 31.0,
                     center.y + 8.0,
                     2.0,
-                    canopy,
+                    canopy_sweep,
                 );
                 draw_line(
                     center.x + 19.0,
@@ -1079,7 +1103,7 @@ impl GameApp {
                     center.x + 31.0,
                     center.y + 8.0,
                     2.0,
-                    canopy,
+                    canopy_sweep,
                 );
                 draw_line(
                     center.x - 15.0,
@@ -1137,13 +1161,19 @@ impl GameApp {
                     vec2(center.x, center.y - 16.0),
                     vec2(center.x - 17.0, center.y + 2.0),
                     vec2(center.x + 17.0, center.y + 2.0),
-                    canopy,
+                    canopy_sweep,
                 );
                 draw_triangle(
                     vec2(center.x, center.y + 6.0),
                     vec2(center.x - 18.0, center.y + 12.0),
                     vec2(center.x + 18.0, center.y + 12.0),
                     belly,
+                );
+                draw_triangle(
+                    vec2(center.x + sweep * 10.0 - 5.0, center.y - 12.0),
+                    vec2(center.x + sweep * 10.0 - 11.0, center.y - 1.0),
+                    vec2(center.x + sweep * 10.0 + 1.0, center.y - 1.0),
+                    wing_glint,
                 );
                 draw_triangle(
                     vec2(center.x, center.y - 7.0),
@@ -1160,7 +1190,7 @@ impl GameApp {
                     center.x - 8.0,
                     center.y + 3.0,
                     2.0,
-                    canopy,
+                    canopy_sweep,
                 );
                 draw_line(
                     center.x + 20.0,
@@ -1168,7 +1198,7 @@ impl GameApp {
                     center.x + 8.0,
                     center.y + 3.0,
                     2.0,
-                    canopy,
+                    canopy_sweep,
                 );
                 draw_circle(center.x - 9.0, center.y - 2.0, 4.0, BLACK);
                 draw_circle(center.x + 9.0, center.y - 2.0, 4.0, BLACK);
@@ -1225,10 +1255,17 @@ impl GameApp {
                     vec2(center.x + 14.0, center.y - 8.0),
                     color,
                 );
-                draw_ellipse(center.x, center.y - 8.0, 11.0, 7.0, 0.0, canopy);
+                draw_ellipse(center.x, center.y - 8.0, 11.0, 7.0, 0.0, canopy_sweep);
                 draw_rectangle(center.x - 12.0, center.y + 3.0, 24.0, 6.0, accent);
                 draw_rectangle(center.x - 6.0, center.y - 12.0, 12.0, 7.0, accent_alt);
-                draw_rectangle(center.x - 10.0, center.y - 1.0, 20.0, 5.0, canopy);
+                draw_rectangle(center.x - 10.0, center.y - 1.0, 20.0, 5.0, canopy_sweep);
+                draw_rectangle(
+                    center.x + sweep * 8.0 - 10.0,
+                    center.y - 10.0,
+                    5.0,
+                    16.0,
+                    wing_glint,
+                );
                 draw_circle(center.x - 8.0, center.y - 2.0, 3.0, BLACK);
                 draw_circle(center.x + 8.0, center.y - 2.0, 3.0, BLACK);
                 draw_line(
@@ -1287,7 +1324,7 @@ impl GameApp {
                     vec2(center.x, center.y - 16.0),
                     vec2(center.x - 19.0, center.y + 1.0),
                     vec2(center.x + 19.0, center.y + 1.0),
-                    canopy,
+                    canopy_sweep,
                 );
                 draw_triangle(
                     vec2(center.x, center.y + 5.0),
@@ -1324,7 +1361,7 @@ impl GameApp {
                     center.x - 8.0,
                     center.y + 2.0,
                     2.0,
-                    canopy,
+                    canopy_sweep,
                 );
                 draw_line(
                     center.x + 22.0,
@@ -1332,7 +1369,13 @@ impl GameApp {
                     center.x + 8.0,
                     center.y + 2.0,
                     2.0,
-                    canopy,
+                    canopy_sweep,
+                );
+                draw_triangle(
+                    vec2(center.x + sweep * 14.0 - 11.0, center.y - 15.0),
+                    vec2(center.x + sweep * 14.0 - 18.0, center.y - 1.0),
+                    vec2(center.x + sweep * 14.0 - 4.0, center.y - 1.0),
+                    wing_glint,
                 );
                 let wing_left = if alien.frame { 30.0 } else { 18.0 };
                 let wing_right = if alien.frame { 18.0 } else { 30.0 };
@@ -1381,7 +1424,7 @@ impl GameApp {
                     vec2(center.x, center.y - 16.0),
                     vec2(center.x - 12.0, center.y + 1.0),
                     vec2(center.x + 12.0, center.y + 1.0),
-                    canopy,
+                    canopy_sweep,
                 );
                 draw_triangle(
                     vec2(center.x, center.y - 12.0),
@@ -1396,7 +1439,13 @@ impl GameApp {
                     center.x,
                     center.y - 2.0,
                     2.0,
-                    canopy,
+                    canopy_sweep,
+                );
+                draw_triangle(
+                    vec2(center.x + sweep * 8.0 - 4.0, center.y - 14.0),
+                    vec2(center.x + sweep * 8.0 - 9.0, center.y - 2.0),
+                    vec2(center.x + sweep * 8.0 + 1.0, center.y - 2.0),
+                    wing_glint,
                 );
                 draw_circle(center.x - 4.0, center.y + 2.0, 3.0, BLACK);
                 draw_circle(center.x + 4.0, center.y + 2.0, 3.0, BLACK);
