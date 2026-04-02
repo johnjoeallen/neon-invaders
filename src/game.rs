@@ -45,6 +45,7 @@ struct Alien {
     col: usize,
     alive: bool,
     frame: bool,
+    fire_flash: f32,
 }
 
 #[derive(Clone)]
@@ -353,6 +354,9 @@ impl GameApp {
     }
 
     fn update_aliens(&mut self, dt: f32) {
+        for alien in &mut self.aliens {
+            alien.fire_flash = (alien.fire_flash - dt * 4.5).max(0.0);
+        }
         let alive = self.alive_aliens();
         let speed_scale =
             1.0 + (1.0 - alive as f32 / (config::ALIEN_ROWS * config::ALIEN_COLS) as f32) * 2.4;
@@ -990,6 +994,7 @@ impl GameApp {
         let rect = self.alien_rect(alien);
         let color = alien_color(alien.row);
         let center = rect.center() + offset;
+        let fire_flash = alien.fire_flash.clamp(0.0, 1.0);
         let highlight = mix_color(color, WHITE, 0.42);
         let shadow = mix_color(color, BLACK, 0.28);
         let belly = mix_color(color, BLACK, 0.48);
@@ -1002,14 +1007,14 @@ impl GameApp {
             color.r,
             color.g,
             color.b,
-            0.16 + sweep * 0.08 + flicker * 0.03,
+            0.16 + sweep * 0.08 + flicker * 0.03 + fire_flash * 0.18,
         );
-        let canopy_sweep = mix_color(canopy, WHITE, 0.18 + sweep * 0.55);
+        let canopy_sweep = mix_color(canopy, WHITE, 0.18 + sweep * 0.55 + fire_flash * 0.3);
         let wing_glint = Color::new(
             highlight.r,
             highlight.g,
             highlight.b,
-            0.16 + sweep * 0.28 + flicker * 0.08,
+            0.16 + sweep * 0.28 + flicker * 0.08 + fire_flash * 0.22,
         );
         let accent = match alien.row {
             0 => Color::from_rgba(255, 92, 82, 255),
@@ -1034,8 +1039,28 @@ impl GameApp {
             center.x - 8.0,
             center.y - 10.0,
             20.0,
-            Color::new(highlight.r, highlight.g, highlight.b, 0.10 + sweep * 0.08),
+            Color::new(
+                highlight.r,
+                highlight.g,
+                highlight.b,
+                0.10 + sweep * 0.08 + fire_flash * 0.1,
+            ),
         );
+        if fire_flash > 0.0 {
+            let flash_color = Color::new(accent.r, accent.g, accent.b, 0.18 + fire_flash * 0.26);
+            draw_circle(
+                center.x,
+                center.y + 18.0,
+                18.0 + fire_flash * 8.0,
+                flash_color,
+            );
+            draw_circle(
+                center.x,
+                center.y + 25.0,
+                10.0 + fire_flash * 6.0,
+                Color::new(1.0, 0.95, 0.8, 0.16 + fire_flash * 0.22),
+            );
+        }
 
         match alien.row {
             0 => {
@@ -1571,6 +1596,9 @@ impl GameApp {
     }
 
     fn idle_aliens(&mut self, dt: f32) {
+        for alien in &mut self.aliens {
+            alien.fire_flash = (alien.fire_flash - dt * 4.5).max(0.0);
+        }
         self.march_progress += dt * 22.0;
         while self.march_progress >= config::ALIEN_MARCH_DISTANCE {
             self.march_progress -= config::ALIEN_MARCH_DISTANCE;
@@ -1716,6 +1744,13 @@ impl GameApp {
             -config::ENEMY_SHOT_MAX_X_SPEED,
             config::ENEMY_SHOT_MAX_X_SPEED,
         );
+        if let Some(alien) = self
+            .aliens
+            .iter_mut()
+            .find(|alien| alien.row == shooter.row && alien.col == shooter.col && alien.alive)
+        {
+            alien.fire_flash = 1.0;
+        }
         self.shots.push(Shot {
             pos: vec2(rect.center().x, rect.y + rect.h * 0.75),
             vel: vec2(aim_x, speed),
@@ -2130,6 +2165,7 @@ fn build_aliens() -> Vec<Alien> {
                 col,
                 alive: true,
                 frame: false,
+                fire_flash: 0.0,
             });
         }
     }
@@ -2189,7 +2225,34 @@ fn draw_shot(shot: Shot, offset: Vec2) {
                 config::ENEMY_SHOT_COLOR
             };
             let core = mix_color(color, WHITE, 0.35);
-            let glow = Color::new(color.r, color.g, color.b, 0.22);
+            let flicker = (get_time() as f32 * 18.0 + shot.pos.y * 0.06).sin() * 0.5 + 0.5;
+            let glow = Color::new(
+                color.r,
+                color.g,
+                color.b,
+                if shot.from_player {
+                    0.22
+                } else {
+                    0.28 + flicker * 0.14
+                },
+            );
+            if !shot.from_player {
+                let trail_h = shot.size.y * (2.3 + flicker * 1.2);
+                draw_rectangle(
+                    pos.x - shot.size.x * 1.4,
+                    pos.y - trail_h * 0.9,
+                    shot.size.x * 2.8,
+                    trail_h,
+                    Color::new(color.r, color.g, color.b, 0.10 + flicker * 0.08),
+                );
+                draw_rectangle(
+                    pos.x - shot.size.x * 0.9,
+                    pos.y - trail_h * 0.68,
+                    shot.size.x * 1.8,
+                    trail_h * 0.62,
+                    Color::from_rgba(255, 220, 150, ((70.0 + flicker * 60.0).round()) as u8),
+                );
+            }
             draw_rectangle(
                 pos.x - shot.size.x * 1.2,
                 pos.y - shot.size.y * 0.5,
@@ -2213,14 +2276,29 @@ fn draw_shot(shot: Shot, offset: Vec2) {
             );
         }
         ShotKind::EnemyBomb => {
+            let pulse = (get_time() as f32 * 10.0 + shot.pos.y * 0.04).sin() * 0.5 + 0.5;
+            draw_circle(
+                pos.x,
+                pos.y,
+                shot.size.x * (1.65 + pulse * 0.2),
+                Color::from_rgba(255, 82, 72, (34.0 + pulse * 22.0).round() as u8),
+            );
             draw_circle(
                 pos.x,
                 pos.y,
                 shot.size.x * 1.15,
-                Color::from_rgba(255, 214, 92, 46),
+                Color::from_rgba(255, 214, 92, (46.0 + pulse * 18.0).round() as u8),
             );
             draw_circle(pos.x, pos.y, shot.size.x * 0.65, config::ACCENT_C);
             draw_circle(pos.x, pos.y, shot.size.x * 0.3, WHITE);
+            draw_line(
+                pos.x,
+                pos.y - shot.size.y * 0.5,
+                pos.x,
+                pos.y - shot.size.y * (2.2 + pulse * 0.35),
+                7.0,
+                Color::from_rgba(255, 118, 76, (70.0 + pulse * 40.0).round() as u8),
+            );
             draw_line(
                 pos.x,
                 pos.y - shot.size.y,
