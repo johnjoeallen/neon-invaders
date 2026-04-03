@@ -1601,42 +1601,92 @@ impl GameApp {
         let color = alien_color(alien.row);
         let accent = mix_color(color, config::ACCENT_B, 0.45);
         let canopy = mix_color(color, WHITE, 0.65);
-        let angle = alien.dive_angle;
+        let phase = alien.dive_angle;
+        let width_scale = phase.cos().abs().max(0.16);
+        let facing = if phase.cos() >= 0.0 { 1.0 } else { -1.0 };
+        let wing_depth = phase.sin() * 9.0;
+        let body_half = 19.0 * width_scale;
+        let wing_span = 30.0 * width_scale;
+        let belly_half = 14.0 * width_scale;
         let glow = Color::new(color.r, color.g, color.b, 0.24 + alien.fire_flash * 0.16);
         draw_circle(center.x, center.y, 42.0, glow);
 
-        let body_top = rotated_point(vec2(0.0, -24.0), angle) + center;
-        let body_left = rotated_point(vec2(-19.0, 8.0), angle) + center;
-        let body_right = rotated_point(vec2(19.0, 8.0), angle) + center;
-        draw_triangle(body_top, body_left, body_right, color);
+        draw_triangle(
+            vec2(center.x, center.y - 24.0),
+            vec2(center.x - body_half, center.y + 8.0),
+            vec2(center.x + body_half, center.y + 8.0),
+            color,
+        );
+        draw_triangle(
+            vec2(center.x, center.y - 8.0),
+            vec2(center.x - belly_half, center.y + 11.0),
+            vec2(center.x + belly_half, center.y + 11.0),
+            accent,
+        );
 
-        let belly_top = rotated_point(vec2(0.0, -8.0), angle) + center;
-        let belly_left = rotated_point(vec2(-14.0, 11.0), angle) + center;
-        let belly_right = rotated_point(vec2(14.0, 11.0), angle) + center;
-        draw_triangle(belly_top, belly_left, belly_right, accent);
+        let canopy_x = center.x + facing * (6.0 * (1.0 - width_scale));
+        draw_ellipse(
+            canopy_x,
+            center.y - 10.0,
+            (8.0 * width_scale).max(2.0),
+            8.0,
+            0.0,
+            canopy,
+        );
 
-        let canopy_center = rotated_point(vec2(0.0, -10.0), angle) + center;
-        draw_circle(canopy_center.x, canopy_center.y, 8.0, canopy);
+        let near_wing = mix_color(accent, WHITE, 0.18);
+        let far_wing = mix_color(accent, BLACK, 0.2);
+        let (left_wing_color, right_wing_color) = if facing > 0.0 {
+            (far_wing, near_wing)
+        } else {
+            (near_wing, far_wing)
+        };
+        draw_triangle(
+            vec2(center.x - body_half * 0.45, center.y - 4.0),
+            vec2(center.x - wing_span, center.y + 2.0 - wing_depth),
+            vec2(center.x - body_half * 0.7, center.y + 16.0),
+            left_wing_color,
+        );
+        draw_triangle(
+            vec2(center.x + body_half * 0.45, center.y - 4.0),
+            vec2(center.x + wing_span, center.y + 2.0 + wing_depth),
+            vec2(center.x + body_half * 0.7, center.y + 16.0),
+            right_wing_color,
+        );
 
-        let wing_l_a = rotated_point(vec2(-10.0, -4.0), angle) + center;
-        let wing_l_b = rotated_point(vec2(-31.0, 2.0), angle) + center;
-        let wing_l_c = rotated_point(vec2(-16.0, 16.0), angle) + center;
-        draw_triangle(wing_l_a, wing_l_b, wing_l_c, accent);
-        let wing_r_a = rotated_point(vec2(10.0, -4.0), angle) + center;
-        let wing_r_b = rotated_point(vec2(31.0, 2.0), angle) + center;
-        let wing_r_c = rotated_point(vec2(16.0, 16.0), angle) + center;
-        draw_triangle(wing_r_a, wing_r_b, wing_r_c, accent);
-
-        let leg1_a = rotated_point(vec2(-10.0, 10.0), angle) + center;
-        let leg1_b = rotated_point(vec2(-10.0, 24.0), angle) + center;
-        let leg1_c = rotated_point(vec2(-16.0, 33.0), angle) + center;
-        draw_line(leg1_a.x, leg1_a.y, leg1_b.x, leg1_b.y, 4.0, color);
-        draw_line(leg1_b.x, leg1_b.y, leg1_c.x, leg1_c.y, 3.0, canopy);
-        let leg2_a = rotated_point(vec2(10.0, 10.0), angle) + center;
-        let leg2_b = rotated_point(vec2(10.0, 24.0), angle) + center;
-        let leg2_c = rotated_point(vec2(16.0, 33.0), angle) + center;
-        draw_line(leg2_a.x, leg2_a.y, leg2_b.x, leg2_b.y, 4.0, color);
-        draw_line(leg2_b.x, leg2_b.y, leg2_c.x, leg2_c.y, 3.0, canopy);
+        let leg_x = 8.0 * width_scale;
+        draw_line(
+            center.x - leg_x,
+            center.y + 10.0,
+            center.x - leg_x,
+            center.y + 24.0,
+            4.0,
+            color,
+        );
+        draw_line(
+            center.x - leg_x,
+            center.y + 24.0,
+            center.x - leg_x - 7.0 * facing,
+            center.y + 33.0,
+            3.0,
+            canopy,
+        );
+        draw_line(
+            center.x + leg_x,
+            center.y + 10.0,
+            center.x + leg_x,
+            center.y + 24.0,
+            4.0,
+            color,
+        );
+        draw_line(
+            center.x + leg_x,
+            center.y + 24.0,
+            center.x + leg_x - 7.0 * facing,
+            center.y + 33.0,
+            3.0,
+            canopy,
+        );
     }
 
     fn update_particles(&mut self, dt: f32) {
@@ -2585,14 +2635,6 @@ fn mix_color(a: Color, b: Color, t: f32) -> Color {
         a.g + (b.g - a.g) * t,
         a.b + (b.b - a.b) * t,
         a.a + (b.a - a.a) * t,
-    )
-}
-
-fn rotated_point(point: Vec2, angle: f32) -> Vec2 {
-    let (sin_a, cos_a) = angle.sin_cos();
-    vec2(
-        point.x * cos_a - point.y * sin_a,
-        point.x * sin_a + point.y * cos_a,
     )
 }
 
