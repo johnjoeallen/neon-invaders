@@ -200,7 +200,8 @@ impl GameApp {
     }
 
     pub fn draw(&self) {
-        self.draw_background();
+        let viewport = self.viewport_offset();
+        self.draw_background(viewport);
 
         let shake = if self.screen_shake > 0.0 {
             vec2(
@@ -211,9 +212,9 @@ impl GameApp {
             Vec2::ZERO
         };
 
-        self.draw_playfield(shake);
-        self.draw_hud();
-        self.draw_overlay();
+        self.draw_playfield(viewport + shake);
+        self.draw_hud(viewport);
+        self.draw_overlay(viewport);
     }
 
     fn update_title(&mut self, dt: f32) {
@@ -519,8 +520,12 @@ impl GameApp {
             let shot = self.shots[i];
             let shot_rect = shot_rect(shot);
             let mut bunker_hit = false;
+            let mut bunker_impact = None;
 
             for bunker in &mut self.bunkers {
+                if bunker_impact.is_none() {
+                    bunker_impact = bunker.impact_point(shot_rect.center());
+                }
                 bunker_hit = match shot.kind {
                     ShotKind::Bolt => bunker.damage_at_rect(shot_rect, shot.from_player),
                     ShotKind::EnemyBomb | ShotKind::PlayerBomb => false,
@@ -532,6 +537,14 @@ impl GameApp {
 
             if bunker_hit {
                 *should_remove = true;
+                self.spawn_bunker_debris(
+                    bunker_impact.unwrap_or_else(|| shot_rect.center()),
+                    if shot.from_player {
+                        config::PLAYER_SHOT_COLOR
+                    } else {
+                        config::ENEMY_SHOT_COLOR
+                    },
+                );
                 if shot.kind == ShotKind::EnemyBomb {
                     self.explode_bomb(shot.pos);
                 } else {
@@ -763,50 +776,59 @@ impl GameApp {
         );
     }
 
-    fn draw_hud(&self) {
+    fn draw_hud(&self, offset: Vec2) {
+        let ox = offset.x;
+        let oy = offset.y;
         draw_rectangle(
-            0.0,
-            0.0,
+            ox,
+            oy,
             config::WINDOW_WIDTH,
             118.0,
             Color::from_rgba(3, 6, 18, 56),
         );
         draw_line(
-            36.0,
-            92.0,
-            config::WINDOW_WIDTH - 36.0,
-            92.0,
+            ox + 36.0,
+            oy + 92.0,
+            ox + config::WINDOW_WIDTH - 36.0,
+            oy + 92.0,
             1.0,
             Color::from_rgba(255, 255, 255, 18),
         );
-        draw_hud_card(28.0, 18.0, 362.0, 70.0, config::ACCENT_A);
+        draw_hud_card(ox + 28.0, oy + 18.0, 362.0, 70.0, config::ACCENT_A);
         draw_hud_card(
-            config::WINDOW_WIDTH * 0.5 - 188.0,
-            18.0,
+            ox + config::WINDOW_WIDTH * 0.5 - 188.0,
+            oy + 18.0,
             376.0,
             70.0,
             config::ACCENT_C,
         );
         draw_hud_card(
-            config::WINDOW_WIDTH - 438.0,
-            18.0,
+            ox + config::WINDOW_WIDTH - 438.0,
+            oy + 18.0,
             202.0,
             70.0,
             config::ACCENT_C,
         );
         draw_hud_card(
-            config::WINDOW_WIDTH - 224.0,
-            18.0,
+            ox + config::WINDOW_WIDTH - 224.0,
+            oy + 18.0,
             196.0,
             70.0,
             config::ACCENT_A,
         );
 
-        arcade_text("SCORE", 46.0, 42.0, 16.0, config::HUD_COLOR, false);
+        arcade_text(
+            "SCORE",
+            ox + 46.0,
+            oy + 42.0,
+            16.0,
+            config::HUD_COLOR,
+            false,
+        );
         arcade_text(
             &format!("{:06}", self.score),
-            44.0,
-            74.0,
+            ox + 44.0,
+            oy + 74.0,
             34.0,
             config::ACCENT_A,
             false,
@@ -814,8 +836,8 @@ impl GameApp {
         if let Some(profile) = self.profiles.get(self.current_player_idx) {
             arcade_text(
                 &format!("PILOT {}", profile.name.to_uppercase()),
-                46.0,
-                108.0,
+                ox + 46.0,
+                oy + 108.0,
                 18.0,
                 config::HUD_COLOR,
                 false,
@@ -824,47 +846,47 @@ impl GameApp {
 
         arcade_text_centered(
             &format!("WAVE {}", self.wave),
-            config::WINDOW_WIDTH * 0.5,
-            46.0,
+            ox + config::WINDOW_WIDTH * 0.5,
+            oy + 46.0,
             18.0,
             config::HUD_COLOR,
         );
         arcade_text_centered(
             &format!("{:02}", self.wave),
-            config::WINDOW_WIDTH * 0.5,
-            76.0,
+            ox + config::WINDOW_WIDTH * 0.5,
+            oy + 76.0,
             36.0,
             config::ACCENT_C,
         );
         arcade_text_centered(
             &format!("HIGH {:06}", self.high_score),
-            config::WINDOW_WIDTH * 0.5,
-            108.0,
+            ox + config::WINDOW_WIDTH * 0.5,
+            oy + 108.0,
             18.0,
             config::HUD_COLOR,
         );
         if self.rapid_fire_timer > 0.0 {
             arcade_text_centered(
                 &format!("RAPID FIRE {:.1}", self.rapid_fire_timer),
-                config::WINDOW_WIDTH * 0.5,
-                132.0,
+                ox + config::WINDOW_WIDTH * 0.5,
+                oy + 132.0,
                 20.0,
                 config::ACCENT_B,
             );
         }
 
-        let bombs_x = config::WINDOW_WIDTH - 418.0;
+        let bombs_x = ox + config::WINDOW_WIDTH - 418.0;
         arcade_text(
             "BOMBS",
             bombs_x + 16.0,
-            44.0,
+            oy + 44.0,
             16.0,
             config::HUD_COLOR,
             false,
         );
         for i in 0..self.player.bombs.min(6) {
             let x = bombs_x + 22.0 + i as f32 * 28.0;
-            let y = 66.0;
+            let y = oy + 66.0;
             draw_glow_circle(x, y, 18.0, Color::from_rgba(255, 170, 82, 44));
             draw_circle(x, y, 9.0, config::PLAYER_BOMB_COLOR);
             draw_circle(x, y, 4.2, WHITE);
@@ -881,24 +903,24 @@ impl GameApp {
             arcade_text(
                 &format!("+{}", self.player.bombs - 6),
                 bombs_x + 22.0 + 6.0 * 28.0,
-                74.0,
+                oy + 74.0,
                 20.0,
                 config::ACCENT_C,
                 false,
             );
         }
 
-        let lives_y = 66.0;
+        let lives_y = oy + 66.0;
         arcade_text(
             "LIVES",
-            config::WINDOW_WIDTH - 204.0,
-            44.0,
+            ox + config::WINDOW_WIDTH - 204.0,
+            oy + 44.0,
             16.0,
             config::HUD_COLOR,
             false,
         );
         for i in 0..self.lives {
-            let x = config::WINDOW_WIDTH - 184.0 + i as f32 * 28.0;
+            let x = ox + config::WINDOW_WIDTH - 184.0 + i as f32 * 28.0;
             draw_triangle(
                 vec2(x, lives_y - 18.0),
                 vec2(x - 11.0, lives_y + 2.0),
@@ -914,85 +936,87 @@ impl GameApp {
         }
     }
 
-    fn draw_overlay(&self) {
+    fn draw_overlay(&self, offset: Vec2) {
+        let ox = offset.x;
+        let oy = offset.y;
         match self.screen {
             ScreenState::Title => {
                 let fade = (self.state_timer / config::TITLE_FADE_TIME).min(1.0);
                 draw_rectangle(
                     0.0,
                     0.0,
-                    config::WINDOW_WIDTH,
-                    config::WINDOW_HEIGHT,
+                    screen_width(),
+                    screen_height(),
                     Color::new(0.02, 0.03, 0.08, 0.68 * fade),
                 );
                 draw_holo_frame(
-                    config::WINDOW_WIDTH * 0.5 - 470.0,
-                    126.0,
+                    ox + config::WINDOW_WIDTH * 0.5 - 470.0,
+                    oy + 126.0,
                     940.0,
                     660.0,
                     config::ACCENT_A,
                 );
                 arcade_title(
                     "NEON INVADERS",
-                    config::WINDOW_WIDTH * 0.5,
-                    218.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 218.0,
                     90.0,
                     config::ACCENT_A,
                     true,
                 );
                 arcade_text_centered(
                     "Classic invasion. Modern arcade energy.",
-                    config::WINDOW_WIDTH * 0.5,
-                    286.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 286.0,
                     24.0,
                     config::ACCENT_C,
                 );
                 if self.entering_name {
                     draw_hud_card(
-                        config::WINDOW_WIDTH * 0.5 - 300.0,
-                        356.0,
+                        ox + config::WINDOW_WIDTH * 0.5 - 300.0,
+                        oy + 356.0,
                         600.0,
                         168.0,
                         config::ACCENT_A,
                     );
                     arcade_text_centered(
                         "ENTER PILOT NAME",
-                        config::WINDOW_WIDTH * 0.5,
-                        402.0,
+                        ox + config::WINDOW_WIDTH * 0.5,
+                        oy + 402.0,
                         32.0,
                         config::ACCENT_A,
                     );
                     arcade_text_centered(
                         &format!("{}_", self.name_input.to_uppercase()),
-                        config::WINDOW_WIDTH * 0.5,
-                        454.0,
+                        ox + config::WINDOW_WIDTH * 0.5,
+                        oy + 454.0,
                         34.0,
                         config::ACCENT_C,
                     );
                     arcade_text_centered(
                         "Type name, then press Enter",
-                        config::WINDOW_WIDTH * 0.5,
-                        496.0,
+                        ox + config::WINDOW_WIDTH * 0.5,
+                        oy + 496.0,
                         22.0,
                         config::HUD_COLOR,
                     );
                 } else {
                     draw_hud_card(
-                        config::WINDOW_WIDTH * 0.5 - 352.0,
-                        334.0,
+                        ox + config::WINDOW_WIDTH * 0.5 - 352.0,
+                        oy + 334.0,
                         704.0,
                         250.0,
                         config::ACCENT_B,
                     );
                     arcade_text_centered(
                         "SELECT PILOT",
-                        config::WINDOW_WIDTH * 0.5,
-                        388.0,
+                        ox + config::WINDOW_WIDTH * 0.5,
+                        oy + 388.0,
                         28.0,
                         config::ACCENT_B,
                     );
                     for (i, profile) in self.profiles.iter().take(6).enumerate() {
-                        let y = 432.0 + i as f32 * 32.0;
+                        let y = oy + 432.0 + i as f32 * 32.0;
                         let selected = i == self.current_player_idx;
                         arcade_text_centered(
                             &format!(
@@ -1000,7 +1024,7 @@ impl GameApp {
                                 profile.name.to_uppercase(),
                                 profile.high_score
                             ),
-                            config::WINDOW_WIDTH * 0.5,
+                            ox + config::WINDOW_WIDTH * 0.5,
                             y,
                             24.0,
                             if selected {
@@ -1013,30 +1037,30 @@ impl GameApp {
                     if let Some(profile) = self.profiles.get(self.current_player_idx) {
                         arcade_text_centered(
                             &format!("BEST {:06}", profile.high_score),
-                            config::WINDOW_WIDTH * 0.5,
-                            618.0,
+                            ox + config::WINDOW_WIDTH * 0.5,
+                            oy + 618.0,
                             22.0,
                             config::ACCENT_C,
                         );
                     }
                     arcade_text_centered(
                         "Up/Down: Select Pilot    N: New Pilot",
-                        config::WINDOW_WIDTH * 0.5,
-                        654.0,
+                        ox + config::WINDOW_WIDTH * 0.5,
+                        oy + 654.0,
                         20.0,
                         config::HUD_COLOR,
                     );
                     arcade_text_centered(
                         "Move: A / D or Left / Right    Shot: Space    Bomb: Up    Quit: Esc",
-                        config::WINDOW_WIDTH * 0.5,
-                        694.0,
+                        ox + config::WINDOW_WIDTH * 0.5,
+                        oy + 694.0,
                         20.0,
                         config::HUD_COLOR,
                     );
                     arcade_text_centered(
                         "Press Space to Start",
-                        config::WINDOW_WIDTH * 0.5,
-                        748.0 + self.state_timer.sin() * 8.0,
+                        ox + config::WINDOW_WIDTH * 0.5,
+                        oy + 748.0 + self.state_timer.sin() * 8.0,
                         32.0,
                         config::ACCENT_C,
                     );
@@ -1045,8 +1069,8 @@ impl GameApp {
             ScreenState::WaveIntro => {
                 let alpha = (1.0 - self.state_timer / config::WAVE_INTRO_TIME).clamp(0.0, 1.0);
                 draw_hud_card(
-                    config::WINDOW_WIDTH * 0.5 - 250.0,
-                    288.0,
+                    ox + config::WINDOW_WIDTH * 0.5 - 250.0,
+                    oy + 288.0,
                     500.0,
                     140.0,
                     Color::new(
@@ -1058,8 +1082,8 @@ impl GameApp {
                 );
                 arcade_text_centered(
                     &format!("WAVE {}", self.wave),
-                    config::WINDOW_WIDTH * 0.5,
-                    346.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 346.0,
                     58.0,
                     Color::new(
                         config::ACCENT_A.r,
@@ -1070,8 +1094,8 @@ impl GameApp {
                 );
                 arcade_text_centered(
                     "Formation incoming",
-                    config::WINDOW_WIDTH * 0.5,
-                    396.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 396.0,
                     22.0,
                     Color::new(
                         config::HUD_COLOR.r,
@@ -1085,59 +1109,59 @@ impl GameApp {
                 draw_rectangle(
                     0.0,
                     0.0,
-                    config::WINDOW_WIDTH,
-                    config::WINDOW_HEIGHT,
+                    screen_width(),
+                    screen_height(),
                     Color::from_rgba(4, 7, 20, 170),
                 );
                 draw_holo_frame(
-                    config::WINDOW_WIDTH * 0.5 - 260.0,
-                    250.0,
+                    ox + config::WINDOW_WIDTH * 0.5 - 260.0,
+                    oy + 250.0,
                     520.0,
                     300.0,
                     config::ACCENT_A,
                 );
                 arcade_title(
                     "PAUSED",
-                    config::WINDOW_WIDTH * 0.5,
-                    340.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 340.0,
                     84.0,
                     config::ACCENT_A,
                     true,
                 );
                 arcade_text_centered(
                     "Press Space to Resume",
-                    config::WINDOW_WIDTH * 0.5,
-                    420.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 420.0,
                     30.0,
                     config::ACCENT_C,
                 );
                 arcade_text_centered(
                     "Press Esc to Return to Title",
-                    config::WINDOW_WIDTH * 0.5,
-                    470.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 470.0,
                     28.0,
                     config::HUD_COLOR,
                 );
             }
             ScreenState::WaveClear => {
                 draw_hud_card(
-                    config::WINDOW_WIDTH * 0.5 - 290.0,
-                    270.0,
+                    ox + config::WINDOW_WIDTH * 0.5 - 290.0,
+                    oy + 270.0,
                     580.0,
                     170.0,
                     config::ACCENT_C,
                 );
                 arcade_text_centered(
                     "WAVE CLEARED",
-                    config::WINDOW_WIDTH * 0.5,
-                    340.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 340.0,
                     54.0,
                     config::ACCENT_C,
                 );
                 arcade_text_centered(
                     "Incoming formation detected...",
-                    config::WINDOW_WIDTH * 0.5,
-                    394.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 394.0,
                     26.0,
                     config::HUD_COLOR,
                 );
@@ -1146,36 +1170,36 @@ impl GameApp {
                 draw_rectangle(
                     0.0,
                     0.0,
-                    config::WINDOW_WIDTH,
-                    config::WINDOW_HEIGHT,
+                    screen_width(),
+                    screen_height(),
                     Color::from_rgba(8, 2, 16, 168),
                 );
                 draw_holo_frame(
-                    config::WINDOW_WIDTH * 0.5 - 310.0,
-                    232.0,
+                    ox + config::WINDOW_WIDTH * 0.5 - 310.0,
+                    oy + 232.0,
                     620.0,
                     340.0,
                     config::ACCENT_B,
                 );
                 arcade_title(
                     "GAME OVER",
-                    config::WINDOW_WIDTH * 0.5,
-                    320.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 320.0,
                     92.0,
                     config::ACCENT_B,
                     true,
                 );
                 arcade_text_centered(
                     &format!("Final Score {:06}", self.score),
-                    config::WINDOW_WIDTH * 0.5,
-                    405.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 405.0,
                     32.0,
                     config::ACCENT_C,
                 );
                 arcade_text_centered(
                     "Press Space to Restart or Esc for Title",
-                    config::WINDOW_WIDTH * 0.5,
-                    500.0,
+                    ox + config::WINDOW_WIDTH * 0.5,
+                    oy + 500.0,
                     28.0,
                     config::HUD_COLOR,
                 );
@@ -1184,16 +1208,12 @@ impl GameApp {
         }
     }
 
-    fn draw_background(&self) {
-        draw_rectangle(
-            0.0,
-            0.0,
-            config::WINDOW_WIDTH,
-            config::WINDOW_HEIGHT,
-            config::BG_TOP,
-        );
+    fn draw_background(&self, offset: Vec2) {
+        let ox = offset.x;
+        let oy = offset.y;
+        draw_rectangle(0.0, 0.0, screen_width(), screen_height(), config::BG_TOP);
         for i in 0..10 {
-            let y = i as f32 / 10.0 * config::WINDOW_HEIGHT;
+            let y = oy + i as f32 / 10.0 * config::WINDOW_HEIGHT;
             let t = i as f32 / 9.0;
             let color = Color::new(
                 config::BG_TOP.r + (config::BG_MID.r - config::BG_TOP.r) * (t * 0.65),
@@ -1210,8 +1230,8 @@ impl GameApp {
             );
         }
         draw_glow_circle(
-            270.0,
-            136.0,
+            ox + 270.0,
+            oy + 136.0,
             190.0,
             Color::new(
                 config::BG_GLOW_B.r,
@@ -1221,8 +1241,8 @@ impl GameApp {
             ),
         );
         draw_glow_circle(
-            730.0,
-            200.0,
+            ox + 730.0,
+            oy + 200.0,
             240.0,
             Color::new(
                 config::BG_GLOW_A.r,
@@ -1232,8 +1252,8 @@ impl GameApp {
             ),
         );
         draw_glow_circle(
-            1260.0,
-            170.0,
+            ox + 1260.0,
+            oy + 170.0,
             220.0,
             Color::new(
                 config::PLAYER_COLOR.r,
@@ -1243,8 +1263,8 @@ impl GameApp {
             ),
         );
         draw_glow_circle(
-            1700.0,
-            220.0,
+            ox + 1700.0,
+            oy + 220.0,
             280.0,
             Color::new(
                 config::BG_GLOW_C.r,
@@ -1262,10 +1282,10 @@ impl GameApp {
             };
             for star in stars {
                 let glow = Color::new(tint.r, tint.g, tint.b, star.alpha * 0.12);
-                draw_circle(star.pos.x, star.pos.y, star.radius * 2.1, glow);
+                draw_circle(star.pos.x + ox, star.pos.y + oy, star.radius * 2.1, glow);
                 draw_circle(
-                    star.pos.x,
-                    star.pos.y,
+                    star.pos.x + ox,
+                    star.pos.y + oy,
                     star.radius,
                     Color::new(tint.r, tint.g, tint.b, star.alpha),
                 );
@@ -1274,8 +1294,8 @@ impl GameApp {
 
         for x in [140.0, 460.0, 820.0, 1180.0, 1520.0, 1830.0] {
             draw_rectangle(
-                x,
-                0.0,
+                ox + x,
+                oy,
                 1.5,
                 config::WINDOW_HEIGHT,
                 Color::from_rgba(255, 255, 255, 8),
@@ -1292,18 +1312,18 @@ impl GameApp {
             ),
             (1180.0, 88.0, 190.0, 2.0, Color::from_rgba(255, 214, 92, 16)),
         ] {
-            draw_rectangle(x, y, w, h, color);
+            draw_rectangle(ox + x, oy + y, w, h, color);
         }
         draw_rectangle(
-            0.0,
-            config::WINDOW_HEIGHT - 240.0,
+            ox,
+            oy + config::WINDOW_HEIGHT - 240.0,
             config::WINDOW_WIDTH,
             240.0,
             Color::from_rgba(6, 8, 22, 96),
         );
         draw_glow_circle(
-            config::WINDOW_WIDTH * 0.5,
-            config::WINDOW_HEIGHT - 118.0,
+            ox + config::WINDOW_WIDTH * 0.5,
+            oy + config::WINDOW_HEIGHT - 118.0,
             340.0,
             Color::new(
                 config::FLOOR_GLOW.r,
@@ -1313,8 +1333,8 @@ impl GameApp {
             ),
         );
         draw_glow_circle(
-            config::WINDOW_WIDTH * 0.5,
-            config::WINDOW_HEIGHT - 66.0,
+            ox + config::WINDOW_WIDTH * 0.5,
+            oy + config::WINDOW_HEIGHT - 66.0,
             620.0,
             Color::from_rgba(255, 255, 255, 8),
         );
@@ -2383,14 +2403,23 @@ impl GameApp {
                 break;
             }
             let mut bunker_hit = false;
+            let mut bunker_impact = None;
             for bunker in &mut self.bunkers {
+                if bunker_impact.is_none() {
+                    bunker_impact = bunker.impact_point(dive_rect.center());
+                }
                 bunker_hit = bunker.damage_at_rect(dive_rect, true);
                 if bunker_hit {
                     break;
                 }
             }
             if bunker_hit {
-                bunker_crashes.push((index, alien.dive_pos, alien.row));
+                bunker_crashes.push((
+                    index,
+                    bunker_impact.unwrap_or(alien.dive_pos),
+                    alien.dive_pos,
+                    alien.row,
+                ));
             }
         }
 
@@ -2399,11 +2428,12 @@ impl GameApp {
             return;
         }
 
-        for (index, center, row) in bunker_crashes {
+        for (index, impact, center, row) in bunker_crashes {
             if self.aliens[index].alive && self.aliens[index].diving {
                 self.aliens[index].alive = false;
                 self.aliens[index].diving = false;
                 self.screen_shake = self.screen_shake.max(10.0);
+                self.spawn_bunker_debris(impact, config::BUNKER_COLOR);
                 self.spawn_radial_burst(center, 18, alien_color(row), 190.0, 0.7);
                 self.spawn_radial_burst(center, 12, config::BUNKER_COLOR, 150.0, 0.55);
             }
@@ -2566,6 +2596,18 @@ impl GameApp {
     fn spawn_impact(&mut self, center: Vec2, color: Color) {
         self.spawn_radial_burst(center, 15, color, 165.0, 0.48);
         self.spawn_radial_burst(center, 8, WHITE, 118.0, 0.28);
+    }
+
+    fn spawn_bunker_debris(&mut self, center: Vec2, impact_color: Color) {
+        self.spawn_radial_burst(center, 9, config::BUNKER_COLOR, 118.0, 0.52);
+        self.spawn_radial_burst(
+            center,
+            5,
+            mix_color(config::BUNKER_COLOR, impact_color, 0.45),
+            92.0,
+            0.38,
+        );
+        self.spawn_radial_burst(center, 4, Color::from_rgba(38, 30, 24, 255), 72.0, 0.42);
     }
 
     fn explode_player_bomb(&mut self, center: Vec2) {
@@ -2819,9 +2861,36 @@ impl GameApp {
             .iter()
             .any(|bunker| bunker.blocks_player(player_rect))
     }
+
+    fn viewport_offset(&self) -> Vec2 {
+        vec2(
+            ((screen_width() - config::WINDOW_WIDTH).max(0.0)) * 0.5,
+            ((screen_height() - config::WINDOW_HEIGHT).max(0.0)) * 0.5,
+        )
+    }
 }
 
 impl Bunker {
+    fn impact_point(&self, point: Vec2) -> Option<Vec2> {
+        for row in 0..config::BUNKER_GRID_H {
+            for col in 0..config::BUNKER_GRID_W {
+                if self.cells[row][col] == 0 {
+                    continue;
+                }
+                let cell_rect = Rect::new(
+                    self.origin.x + col as f32 * config::BUNKER_CELL,
+                    self.origin.y + row as f32 * config::BUNKER_CELL,
+                    config::BUNKER_CELL - 1.0,
+                    config::BUNKER_CELL - 1.0,
+                );
+                if cell_rect.contains(point) {
+                    return Some(cell_rect.center());
+                }
+            }
+        }
+        None
+    }
+
     fn damage_at_rect(&mut self, rect: Rect, strong: bool) -> bool {
         let mut hit = false;
         for row in 0..config::BUNKER_GRID_H {
