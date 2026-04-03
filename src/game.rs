@@ -200,8 +200,24 @@ impl GameApp {
     }
 
     pub fn draw(&self) {
-        let viewport = self.viewport_offset();
-        self.draw_background(viewport);
+        clear_background(Color::from_rgba(1, 2, 8, 255));
+        let (viewport, scale) = self.viewport_frame();
+        self.draw_letterbox_backdrop(viewport, scale);
+
+        let mut camera = Camera2D::from_display_rect(Rect::new(
+            0.0,
+            0.0,
+            config::WINDOW_WIDTH,
+            config::WINDOW_HEIGHT,
+        ));
+        camera.viewport = Some((
+            viewport.x.round() as i32,
+            viewport.y.round() as i32,
+            (config::WINDOW_WIDTH * scale).round() as i32,
+            (config::WINDOW_HEIGHT * scale).round() as i32,
+        ));
+        set_camera(&camera);
+        self.draw_background(Vec2::ZERO);
 
         let shake = if self.screen_shake > 0.0 {
             vec2(
@@ -212,9 +228,11 @@ impl GameApp {
             Vec2::ZERO
         };
 
-        self.draw_playfield(viewport + shake);
-        self.draw_hud(viewport);
-        self.draw_overlay(viewport);
+        self.draw_playfield(shake);
+        self.draw_hud(Vec2::ZERO);
+        self.draw_overlay(Vec2::ZERO);
+        set_default_camera();
+        self.draw_viewport_frame(viewport, scale);
     }
 
     fn update_title(&mut self, dt: f32) {
@@ -945,8 +963,8 @@ impl GameApp {
                 draw_rectangle(
                     0.0,
                     0.0,
-                    screen_width(),
-                    screen_height(),
+                    config::WINDOW_WIDTH,
+                    config::WINDOW_HEIGHT,
                     Color::new(0.02, 0.03, 0.08, 0.68 * fade),
                 );
                 draw_holo_frame(
@@ -1109,8 +1127,8 @@ impl GameApp {
                 draw_rectangle(
                     0.0,
                     0.0,
-                    screen_width(),
-                    screen_height(),
+                    config::WINDOW_WIDTH,
+                    config::WINDOW_HEIGHT,
                     Color::from_rgba(4, 7, 20, 170),
                 );
                 draw_holo_frame(
@@ -1170,8 +1188,8 @@ impl GameApp {
                 draw_rectangle(
                     0.0,
                     0.0,
-                    screen_width(),
-                    screen_height(),
+                    config::WINDOW_WIDTH,
+                    config::WINDOW_HEIGHT,
                     Color::from_rgba(8, 2, 16, 168),
                 );
                 draw_holo_frame(
@@ -1211,7 +1229,13 @@ impl GameApp {
     fn draw_background(&self, offset: Vec2) {
         let ox = offset.x;
         let oy = offset.y;
-        draw_rectangle(0.0, 0.0, screen_width(), screen_height(), config::BG_TOP);
+        draw_rectangle(
+            0.0,
+            0.0,
+            config::WINDOW_WIDTH,
+            config::WINDOW_HEIGHT,
+            config::BG_TOP,
+        );
         for i in 0..10 {
             let y = oy + i as f32 / 10.0 * config::WINDOW_HEIGHT;
             let t = i as f32 / 9.0;
@@ -2862,11 +2886,69 @@ impl GameApp {
             .any(|bunker| bunker.blocks_player(player_rect))
     }
 
-    fn viewport_offset(&self) -> Vec2 {
-        vec2(
-            ((screen_width() - config::WINDOW_WIDTH).max(0.0)) * 0.5,
-            ((screen_height() - config::WINDOW_HEIGHT).max(0.0)) * 0.5,
-        )
+    fn viewport_frame(&self) -> (Vec2, f32) {
+        let scale = (screen_width() / config::WINDOW_WIDTH)
+            .min(screen_height() / config::WINDOW_HEIGHT)
+            .max(0.1);
+        let size = vec2(config::WINDOW_WIDTH * scale, config::WINDOW_HEIGHT * scale);
+        let origin = vec2(
+            (screen_width() - size.x) * 0.5,
+            (screen_height() - size.y) * 0.5,
+        );
+        (origin, scale)
+    }
+
+    fn draw_letterbox_backdrop(&self, viewport: Vec2, scale: f32) {
+        let view_w = config::WINDOW_WIDTH * scale;
+        let view_h = config::WINDOW_HEIGHT * scale;
+        draw_glow_circle(
+            screen_width() * 0.5,
+            screen_height() * 0.5,
+            screen_width().max(screen_height()) * 0.45,
+            Color::from_rgba(44, 160, 255, 28),
+        );
+        draw_glow_circle(
+            screen_width() * 0.5,
+            screen_height() * 0.34,
+            screen_width().max(screen_height()) * 0.32,
+            Color::from_rgba(255, 96, 154, 18),
+        );
+        draw_rectangle(
+            viewport.x - 24.0,
+            viewport.y - 24.0,
+            view_w + 48.0,
+            view_h + 48.0,
+            Color::from_rgba(5, 8, 22, 120),
+        );
+    }
+
+    fn draw_viewport_frame(&self, viewport: Vec2, scale: f32) {
+        let view_w = config::WINDOW_WIDTH * scale;
+        let view_h = config::WINDOW_HEIGHT * scale;
+        draw_rectangle_lines(
+            viewport.x - 2.0,
+            viewport.y - 2.0,
+            view_w + 4.0,
+            view_h + 4.0,
+            2.0,
+            Color::from_rgba(255, 255, 255, 24),
+        );
+        draw_rectangle_lines(
+            viewport.x,
+            viewport.y,
+            view_w,
+            view_h,
+            2.0,
+            Color::from_rgba(82, 218, 255, 96),
+        );
+        draw_line(
+            viewport.x + 28.0,
+            viewport.y + 14.0,
+            viewport.x + view_w - 28.0,
+            viewport.y + 14.0,
+            1.0,
+            Color::from_rgba(255, 255, 255, 18),
+        );
     }
 }
 
