@@ -144,7 +144,7 @@ impl GameApp {
             },
             shots: Vec::new(),
             aliens: Vec::new(),
-            formation_x: config::ALIEN_START_X,
+            formation_x: formation_start_x(),
             formation_y: config::ALIEN_START_Y,
             alien_dir: 1.0,
             enemy_fire_timer: config::ENEMY_FIRE_BASE_INTERVAL,
@@ -424,9 +424,9 @@ impl GameApp {
         self.player.x = self
             .player
             .x
-            .clamp(half_w + 20.0, config::WINDOW_WIDTH - half_w - 20.0);
+            .clamp(half_w + 28.0, config::WINDOW_WIDTH - half_w - 28.0);
 
-        if is_key_pressed(KeyCode::Space)
+        if is_key_down(KeyCode::Space)
             && self.player.cooldown <= 0.0
             && (self.rapid_fire_timer > 0.0
                 || !self
@@ -469,8 +469,8 @@ impl GameApp {
         }
         self.update_diving_aliens(dt);
         let alive = self.alive_aliens();
-        let speed_scale =
-            1.0 + (1.0 - alive as f32 / (config::ALIEN_ROWS * config::ALIEN_COLS) as f32) * 2.4;
+        let tension = 1.0 - alive as f32 / (config::ALIEN_ROWS * config::ALIEN_COLS) as f32;
+        let speed_scale = 1.0 + tension * 2.7 + tension.powf(2.0) * 0.6;
         let march_speed = self.alien_dir
             * config::ALIEN_BASE_SPEED
             * speed_scale
@@ -619,6 +619,26 @@ impl GameApp {
     }
 
     fn draw_playfield(&self, offset: Vec2) {
+        let floor_y = config::PLAYER_ZONE_Y + offset.y;
+        draw_glow_circle(
+            config::WINDOW_WIDTH * 0.5 + offset.x,
+            floor_y + 14.0,
+            280.0,
+            Color::new(
+                config::FLOOR_GLOW.r,
+                config::FLOOR_GLOW.g,
+                config::FLOOR_GLOW.b,
+                0.10,
+            ),
+        );
+        draw_rectangle(
+            72.0 + offset.x,
+            floor_y - 8.0,
+            config::WINDOW_WIDTH - 144.0,
+            30.0,
+            Color::from_rgba(18, 28, 54, 72),
+        );
+
         for bunker in &self.bunkers {
             bunker.draw(offset);
         }
@@ -663,11 +683,32 @@ impl GameApp {
                 particle.size * (1.8 - t),
                 glow,
             );
+            draw_poly(
+                particle.pos.x + offset.x,
+                particle.pos.y + offset.y,
+                4,
+                particle.size * (0.35 + t * 0.3),
+                get_time() as f32 * 140.0 + particle.pos.x * 0.2,
+                Color::new(
+                    particle.color.r,
+                    particle.color.g,
+                    particle.color.b,
+                    0.18 * t,
+                ),
+            );
             draw_circle(
                 particle.pos.x + offset.x,
                 particle.pos.y + offset.y,
                 particle.size * (0.55 + t * 0.45),
                 Color::new(particle.color.r, particle.color.g, particle.color.b, t),
+            );
+            draw_line(
+                particle.pos.x - particle.size * 0.7 + offset.x,
+                particle.pos.y + offset.y,
+                particle.pos.x + particle.size * 0.7 + offset.x,
+                particle.pos.y + offset.y,
+                1.0,
+                Color::new(1.0, 1.0, 1.0, 0.18 * t),
             );
         }
 
@@ -700,85 +741,164 @@ impl GameApp {
         }
 
         draw_line(
-            36.0 + offset.x,
-            config::PLAYER_ZONE_Y + offset.y,
-            config::WINDOW_WIDTH - 36.0 + offset.x,
-            config::PLAYER_ZONE_Y + offset.y,
-            2.0,
-            Color::from_rgba(255, 255, 255, 24),
+            72.0 + offset.x,
+            floor_y,
+            config::WINDOW_WIDTH - 72.0 + offset.x,
+            floor_y,
+            3.0,
+            Color::from_rgba(255, 255, 255, 34),
+        );
+        draw_line(
+            92.0 + offset.x,
+            floor_y + 5.0,
+            config::WINDOW_WIDTH - 92.0 + offset.x,
+            floor_y + 5.0,
+            1.0,
+            Color::new(
+                config::FLOOR_GLOW.r,
+                config::FLOOR_GLOW.g,
+                config::FLOOR_GLOW.b,
+                0.58,
+            ),
         );
     }
 
     fn draw_hud(&self) {
-        draw_arcade_panel(24.0, 18.0, 280.0, 56.0, config::ACCENT_A);
-        draw_arcade_panel(320.0, 18.0, 320.0, 56.0, config::ACCENT_C);
-        draw_arcade_panel(
-            config::WINDOW_WIDTH - 514.0,
-            18.0,
-            150.0,
-            56.0,
-            config::ACCENT_B,
+        draw_rectangle(
+            0.0,
+            0.0,
+            config::WINDOW_WIDTH,
+            118.0,
+            Color::from_rgba(3, 6, 18, 56),
         );
-        draw_arcade_panel(
-            config::WINDOW_WIDTH - 356.0,
+        draw_line(
+            36.0,
+            92.0,
+            config::WINDOW_WIDTH - 36.0,
+            92.0,
+            1.0,
+            Color::from_rgba(255, 255, 255, 18),
+        );
+        draw_hud_card(28.0, 18.0, 362.0, 70.0, config::ACCENT_A);
+        draw_hud_card(
+            config::WINDOW_WIDTH * 0.5 - 188.0,
             18.0,
-            180.0,
-            56.0,
+            376.0,
+            70.0,
             config::ACCENT_C,
         );
-        draw_arcade_panel(
-            config::WINDOW_WIDTH - 168.0,
+        draw_hud_card(
+            config::WINDOW_WIDTH - 438.0,
             18.0,
-            144.0,
-            56.0,
-            config::ACCENT_A,
-        );
-        arcade_text(
-            &format!("SCORE {:06}", self.score),
-            38.0,
-            56.0,
-            28.0,
-            config::ACCENT_A,
-            false,
-        );
-        arcade_text(
-            &format!("HIGH {:06}", self.high_score),
-            480.0,
-            56.0,
-            28.0,
+            202.0,
+            70.0,
             config::ACCENT_C,
-            true,
         );
+        draw_hud_card(
+            config::WINDOW_WIDTH - 224.0,
+            18.0,
+            196.0,
+            70.0,
+            config::ACCENT_A,
+        );
+
+        arcade_text("SCORE", 46.0, 42.0, 16.0, config::HUD_COLOR, false);
         arcade_text(
-            &format!("WAVE {}", self.wave),
-            config::WINDOW_WIDTH - 498.0,
-            56.0,
-            24.0,
-            config::ACCENT_B,
+            &format!("{:06}", self.score),
+            44.0,
+            74.0,
+            34.0,
+            config::ACCENT_A,
             false,
         );
         if let Some(profile) = self.profiles.get(self.current_player_idx) {
             arcade_text(
                 &format!("PILOT {}", profile.name.to_uppercase()),
-                38.0,
-                104.0,
-                20.0,
+                46.0,
+                108.0,
+                18.0,
                 config::HUD_COLOR,
                 false,
             );
         }
 
-        let lives_y = 56.0;
+        arcade_text_centered(
+            &format!("WAVE {}", self.wave),
+            config::WINDOW_WIDTH * 0.5,
+            46.0,
+            18.0,
+            config::HUD_COLOR,
+        );
+        arcade_text_centered(
+            &format!("{:02}", self.wave),
+            config::WINDOW_WIDTH * 0.5,
+            76.0,
+            36.0,
+            config::ACCENT_C,
+        );
+        arcade_text_centered(
+            &format!("HIGH {:06}", self.high_score),
+            config::WINDOW_WIDTH * 0.5,
+            108.0,
+            18.0,
+            config::HUD_COLOR,
+        );
+        if self.rapid_fire_timer > 0.0 {
+            arcade_text_centered(
+                &format!("RAPID FIRE {:.1}", self.rapid_fire_timer),
+                config::WINDOW_WIDTH * 0.5,
+                132.0,
+                20.0,
+                config::ACCENT_B,
+            );
+        }
+
+        let bombs_x = config::WINDOW_WIDTH - 418.0;
+        arcade_text(
+            "BOMBS",
+            bombs_x + 16.0,
+            44.0,
+            16.0,
+            config::HUD_COLOR,
+            false,
+        );
+        for i in 0..self.player.bombs.min(6) {
+            let x = bombs_x + 22.0 + i as f32 * 28.0;
+            let y = 66.0;
+            draw_glow_circle(x, y, 18.0, Color::from_rgba(255, 170, 82, 44));
+            draw_circle(x, y, 9.0, config::PLAYER_BOMB_COLOR);
+            draw_circle(x, y, 4.2, WHITE);
+            draw_line(
+                x,
+                y - 9.0,
+                x,
+                y - 18.0,
+                3.0,
+                Color::from_rgba(255, 228, 132, 255),
+            );
+        }
+        if self.player.bombs > 6 {
+            arcade_text(
+                &format!("+{}", self.player.bombs - 6),
+                bombs_x + 22.0 + 6.0 * 28.0,
+                74.0,
+                20.0,
+                config::ACCENT_C,
+                false,
+            );
+        }
+
+        let lives_y = 66.0;
         arcade_text(
             "LIVES",
-            config::WINDOW_WIDTH - 154.0,
-            lives_y,
-            18.0,
-            config::ACCENT_A,
+            config::WINDOW_WIDTH - 204.0,
+            44.0,
+            16.0,
+            config::HUD_COLOR,
             false,
         );
         for i in 0..self.lives {
-            let x = config::WINDOW_WIDTH - 145.0 + i as f32 * 24.0;
+            let x = config::WINDOW_WIDTH - 184.0 + i as f32 * 28.0;
             draw_triangle(
                 vec2(x, lives_y - 18.0),
                 vec2(x - 11.0, lives_y + 2.0),
@@ -792,34 +912,6 @@ impl GameApp {
                 mix_color(config::PLAYER_COLOR, WHITE, 0.3),
             );
         }
-
-        let bombs_x = config::WINDOW_WIDTH - 342.0;
-        arcade_text("BOMBS", bombs_x, 56.0, 18.0, config::ACCENT_C, false);
-        for i in 0..self.player.bombs {
-            let x = bombs_x + i as f32 * 26.0;
-            let y = 44.0;
-            draw_circle(x + 10.0, y, 11.0, Color::from_rgba(255, 170, 82, 80));
-            draw_circle(x + 10.0, y, 7.5, config::PLAYER_BOMB_COLOR);
-            draw_circle(x + 10.0, y, 3.5, WHITE);
-            draw_line(
-                x + 10.0,
-                y - 8.0,
-                x + 10.0,
-                y - 18.0,
-                3.0,
-                Color::from_rgba(255, 228, 132, 255),
-            );
-        }
-
-        if self.rapid_fire_timer > 0.0 {
-            arcade_text_centered(
-                &format!("RAPID FIRE {:.1}", self.rapid_fire_timer),
-                config::WINDOW_WIDTH * 0.5,
-                104.0,
-                22.0,
-                config::ACCENT_B,
-            );
-        }
     }
 
     fn draw_overlay(&self) {
@@ -831,29 +923,36 @@ impl GameApp {
                     0.0,
                     config::WINDOW_WIDTH,
                     config::WINDOW_HEIGHT,
-                    Color::new(0.02, 0.03, 0.08, 0.55 * fade),
+                    Color::new(0.02, 0.03, 0.08, 0.68 * fade),
+                );
+                draw_holo_frame(
+                    config::WINDOW_WIDTH * 0.5 - 470.0,
+                    126.0,
+                    940.0,
+                    660.0,
+                    config::ACCENT_A,
                 );
                 arcade_title(
                     "NEON INVADERS",
                     config::WINDOW_WIDTH * 0.5,
-                    220.0,
-                    96.0,
+                    218.0,
+                    90.0,
                     config::ACCENT_A,
                     true,
                 );
                 arcade_text_centered(
                     "Classic invasion. Modern arcade energy.",
                     config::WINDOW_WIDTH * 0.5,
-                    300.0,
-                    28.0,
+                    286.0,
+                    24.0,
                     config::ACCENT_C,
                 );
                 if self.entering_name {
-                    draw_arcade_panel(
-                        config::WINDOW_WIDTH * 0.5 - 280.0,
-                        350.0,
-                        560.0,
-                        150.0,
+                    draw_hud_card(
+                        config::WINDOW_WIDTH * 0.5 - 300.0,
+                        356.0,
+                        600.0,
+                        168.0,
                         config::ACCENT_A,
                     );
                     arcade_text_centered(
@@ -878,11 +977,11 @@ impl GameApp {
                         config::HUD_COLOR,
                     );
                 } else {
-                    draw_arcade_panel(
-                        config::WINDOW_WIDTH * 0.5 - 320.0,
-                        338.0,
-                        640.0,
-                        228.0,
+                    draw_hud_card(
+                        config::WINDOW_WIDTH * 0.5 - 352.0,
+                        334.0,
+                        704.0,
+                        250.0,
                         config::ACCENT_B,
                     );
                     arcade_text_centered(
@@ -911,47 +1010,73 @@ impl GameApp {
                             },
                         );
                     }
+                    if let Some(profile) = self.profiles.get(self.current_player_idx) {
+                        arcade_text_centered(
+                            &format!("BEST {:06}", profile.high_score),
+                            config::WINDOW_WIDTH * 0.5,
+                            618.0,
+                            22.0,
+                            config::ACCENT_C,
+                        );
+                    }
                     arcade_text_centered(
                         "Up/Down: Select Pilot    N: New Pilot",
                         config::WINDOW_WIDTH * 0.5,
-                        592.0,
-                        22.0,
+                        654.0,
+                        20.0,
                         config::HUD_COLOR,
                     );
                     arcade_text_centered(
                         "Move: A / D or Left / Right    Shot: Space    Bomb: Up    Quit: Esc",
                         config::WINDOW_WIDTH * 0.5,
-                        644.0,
-                        22.0,
+                        694.0,
+                        20.0,
                         config::HUD_COLOR,
                     );
                     arcade_text_centered(
                         "Press Space to Start",
                         config::WINDOW_WIDTH * 0.5,
-                        714.0 + self.state_timer.sin() * 8.0,
-                        34.0,
+                        748.0 + self.state_timer.sin() * 8.0,
+                        32.0,
                         config::ACCENT_C,
                     );
                 }
             }
             ScreenState::WaveIntro => {
                 let alpha = (1.0 - self.state_timer / config::WAVE_INTRO_TIME).clamp(0.0, 1.0);
-                draw_rectangle(
-                    0.0,
-                    0.0,
-                    config::WINDOW_WIDTH,
-                    config::WINDOW_HEIGHT,
-                    Color::new(0.02, 0.02, 0.06, 0.24 * alpha),
+                draw_hud_card(
+                    config::WINDOW_WIDTH * 0.5 - 250.0,
+                    288.0,
+                    500.0,
+                    140.0,
+                    Color::new(
+                        config::ACCENT_A.r,
+                        config::ACCENT_A.g,
+                        config::ACCENT_A.b,
+                        alpha,
+                    ),
                 );
                 arcade_text_centered(
                     &format!("WAVE {}", self.wave),
                     config::WINDOW_WIDTH * 0.5,
-                    360.0,
+                    346.0,
                     58.0,
                     Color::new(
                         config::ACCENT_A.r,
                         config::ACCENT_A.g,
                         config::ACCENT_A.b,
+                        alpha,
+                    ),
+                );
+                arcade_text_centered(
+                    "Formation incoming",
+                    config::WINDOW_WIDTH * 0.5,
+                    396.0,
+                    22.0,
+                    Color::new(
+                        config::HUD_COLOR.r,
+                        config::HUD_COLOR.g,
+                        config::HUD_COLOR.b,
                         alpha,
                     ),
                 );
@@ -963,6 +1088,13 @@ impl GameApp {
                     config::WINDOW_WIDTH,
                     config::WINDOW_HEIGHT,
                     Color::from_rgba(4, 7, 20, 170),
+                );
+                draw_holo_frame(
+                    config::WINDOW_WIDTH * 0.5 - 260.0,
+                    250.0,
+                    520.0,
+                    300.0,
+                    config::ACCENT_A,
                 );
                 arcade_title(
                     "PAUSED",
@@ -988,17 +1120,24 @@ impl GameApp {
                 );
             }
             ScreenState::WaveClear => {
+                draw_hud_card(
+                    config::WINDOW_WIDTH * 0.5 - 290.0,
+                    270.0,
+                    580.0,
+                    170.0,
+                    config::ACCENT_C,
+                );
                 arcade_text_centered(
                     "WAVE CLEARED",
                     config::WINDOW_WIDTH * 0.5,
-                    350.0,
+                    340.0,
                     54.0,
                     config::ACCENT_C,
                 );
                 arcade_text_centered(
                     "Incoming formation detected...",
                     config::WINDOW_WIDTH * 0.5,
-                    410.0,
+                    394.0,
                     26.0,
                     config::HUD_COLOR,
                 );
@@ -1010,6 +1149,13 @@ impl GameApp {
                     config::WINDOW_WIDTH,
                     config::WINDOW_HEIGHT,
                     Color::from_rgba(8, 2, 16, 168),
+                );
+                draw_holo_frame(
+                    config::WINDOW_WIDTH * 0.5 - 310.0,
+                    232.0,
+                    620.0,
+                    340.0,
+                    config::ACCENT_B,
                 );
                 arcade_title(
                     "GAME OVER",
@@ -1063,13 +1209,50 @@ impl GameApp {
                 color,
             );
         }
-
-        for x in [260.0, 960.0, 1650.0] {
-            draw_circle(x, 150.0, 110.0, Color::from_rgba(255, 55, 82, 9));
-        }
-        for x in [420.0, 1280.0] {
-            draw_circle(x, 240.0, 160.0, Color::from_rgba(64, 122, 255, 11));
-        }
+        draw_glow_circle(
+            270.0,
+            136.0,
+            190.0,
+            Color::new(
+                config::BG_GLOW_B.r,
+                config::BG_GLOW_B.g,
+                config::BG_GLOW_B.b,
+                0.06,
+            ),
+        );
+        draw_glow_circle(
+            730.0,
+            200.0,
+            240.0,
+            Color::new(
+                config::BG_GLOW_A.r,
+                config::BG_GLOW_A.g,
+                config::BG_GLOW_A.b,
+                0.05,
+            ),
+        );
+        draw_glow_circle(
+            1260.0,
+            170.0,
+            220.0,
+            Color::new(
+                config::PLAYER_COLOR.r,
+                config::PLAYER_COLOR.g,
+                config::PLAYER_COLOR.b,
+                0.04,
+            ),
+        );
+        draw_glow_circle(
+            1700.0,
+            220.0,
+            280.0,
+            Color::new(
+                config::BG_GLOW_C.r,
+                config::BG_GLOW_C.g,
+                config::BG_GLOW_C.b,
+                0.04,
+            ),
+        );
 
         for (layer, stars) in self.stars.iter().enumerate() {
             let tint = match layer {
@@ -1089,14 +1272,6 @@ impl GameApp {
             }
         }
 
-        for (x, y, r, color) in [
-            (220.0, 120.0, 150.0, Color::from_rgba(255, 92, 84, 14)),
-            (720.0, 210.0, 190.0, Color::from_rgba(90, 148, 255, 12)),
-            (1240.0, 160.0, 170.0, Color::from_rgba(118, 255, 190, 10)),
-            (1700.0, 240.0, 220.0, Color::from_rgba(255, 208, 94, 10)),
-        ] {
-            draw_circle(x, y, r, color);
-        }
         for x in [140.0, 460.0, 820.0, 1180.0, 1520.0, 1830.0] {
             draw_rectangle(
                 x,
@@ -1106,12 +1281,42 @@ impl GameApp {
                 Color::from_rgba(255, 255, 255, 8),
             );
         }
+        for (x, y, w, h, color) in [
+            (86.0, 90.0, 300.0, 2.0, Color::from_rgba(82, 178, 255, 18)),
+            (
+                1450.0,
+                144.0,
+                240.0,
+                2.0,
+                Color::from_rgba(255, 110, 164, 18),
+            ),
+            (1180.0, 88.0, 190.0, 2.0, Color::from_rgba(255, 214, 92, 16)),
+        ] {
+            draw_rectangle(x, y, w, h, color);
+        }
         draw_rectangle(
             0.0,
-            config::WINDOW_HEIGHT - 210.0,
+            config::WINDOW_HEIGHT - 240.0,
             config::WINDOW_WIDTH,
-            210.0,
-            Color::from_rgba(6, 8, 22, 72),
+            240.0,
+            Color::from_rgba(6, 8, 22, 96),
+        );
+        draw_glow_circle(
+            config::WINDOW_WIDTH * 0.5,
+            config::WINDOW_HEIGHT - 118.0,
+            340.0,
+            Color::new(
+                config::FLOOR_GLOW.r,
+                config::FLOOR_GLOW.g,
+                config::FLOOR_GLOW.b,
+                0.08,
+            ),
+        );
+        draw_glow_circle(
+            config::WINDOW_WIDTH * 0.5,
+            config::WINDOW_HEIGHT - 66.0,
+            620.0,
+            Color::from_rgba(255, 255, 255, 8),
         );
     }
 
@@ -1132,11 +1337,19 @@ impl GameApp {
         let warm_panel = Color::from_rgba(255, 110, 82, 255);
         let cool_panel = Color::from_rgba(118, 232, 255, 255);
         let rim = mix_color(color, WHITE, 0.55);
-        draw_circle(rect.center().x, rect.center().y + 6.0, 52.0, glow);
-        draw_circle(
+        draw_ellipse(
+            rect.center().x,
+            rect.y + rect.h + 18.0,
+            62.0,
+            16.0,
+            0.0,
+            Color::from_rgba(4, 8, 20, 124),
+        );
+        draw_glow_circle(rect.center().x, rect.center().y + 6.0, 58.0, glow);
+        draw_glow_circle(
             rect.center().x,
             rect.center().y + 10.0,
-            28.0,
+            32.0,
             Color::new(warm_panel.r, warm_panel.g, warm_panel.b, 0.12),
         );
         draw_triangle(
@@ -1150,6 +1363,12 @@ impl GameApp {
             vec2(rect.x + 12.0, rect.y + rect.h + 4.0),
             vec2(rect.x + rect.w - 12.0, rect.y + rect.h + 4.0),
             color,
+        );
+        draw_triangle(
+            vec2(rect.x + rect.w * 0.5, rect.y - 22.0),
+            vec2(rect.x + 22.0, rect.y + 6.0),
+            vec2(rect.x + rect.w - 22.0, rect.y + 6.0),
+            Color::new(panel.r, panel.g, panel.b, 0.72),
         );
         draw_triangle(
             vec2(rect.x + rect.w * 0.5, rect.y - 8.0),
@@ -1177,6 +1396,20 @@ impl GameApp {
             24.0,
             7.0,
             Color::new(panel.r, panel.g, panel.b, 0.9),
+        );
+        draw_rectangle(
+            rect.x + rect.w * 0.5 - 16.0,
+            rect.y + 12.0,
+            6.0,
+            18.0,
+            mix_color(cool_panel, WHITE, 0.2),
+        );
+        draw_rectangle(
+            rect.x + rect.w * 0.5 + 10.0,
+            rect.y + 12.0,
+            6.0,
+            18.0,
+            mix_color(cool_panel, BLACK, 0.1),
         );
         draw_rectangle(
             rect.x + rect.w * 0.5 - 8.0,
@@ -1236,6 +1469,14 @@ impl GameApp {
             rect.y + rect.h + 2.0,
             2.0,
             Color::from_rgba(255, 255, 255, 55),
+        );
+        draw_line(
+            rect.x + 18.0,
+            rect.y + 5.0,
+            rect.x + rect.w - 18.0,
+            rect.y + 5.0,
+            1.5,
+            Color::from_rgba(255, 255, 255, 65),
         );
         draw_rectangle(
             rect.x + rect.w * 0.5 - 6.0,
@@ -1333,6 +1574,14 @@ impl GameApp {
             get_time() as f32 * 5.5 + alien.row as f32 * 0.8 + alien.col as f32 * 0.27;
         let glitter = (glitter_phase.sin() * 0.5 + 0.5).powf(2.6);
         let leg_sway = if alien.frame { 6.0 } else { -6.0 };
+        draw_ellipse(
+            center.x,
+            center.y + 28.0,
+            36.0,
+            9.0,
+            0.0,
+            Color::from_rgba(3, 6, 18, 90),
+        );
         draw_circle(center.x, center.y + 2.0, 44.0, glow);
         draw_circle(
             center.x - 8.0,
@@ -1825,6 +2074,25 @@ impl GameApp {
                 );
             }
         }
+        draw_line(
+            center.x - 18.0,
+            center.y - 14.0,
+            center.x + 18.0,
+            center.y - 14.0,
+            1.4,
+            Color::new(1.0, 1.0, 1.0, 0.12 + sweep * 0.16 + fire_flash * 0.1),
+        );
+        draw_circle(
+            center.x + 15.0,
+            center.y + 5.0,
+            9.0,
+            Color::new(
+                accent_alt.r,
+                accent_alt.g,
+                accent_alt.b,
+                0.08 + sweep * 0.09,
+            ),
+        );
     }
 
     fn draw_diving_alien(&self, alien: Alien, offset: Vec2) {
@@ -1840,7 +2108,15 @@ impl GameApp {
         let wing_span = 30.0 * width_scale;
         let belly_half = 14.0 * width_scale;
         let glow = Color::new(color.r, color.g, color.b, 0.24 + alien.fire_flash * 0.16);
-        draw_circle(center.x, center.y, 42.0, glow);
+        draw_ellipse(
+            center.x,
+            center.y + 28.0,
+            34.0,
+            8.0,
+            0.0,
+            Color::from_rgba(4, 8, 20, 84),
+        );
+        draw_glow_circle(center.x, center.y, 42.0, glow);
 
         draw_triangle(
             vec2(center.x, center.y - 24.0),
@@ -2036,7 +2312,7 @@ impl GameApp {
         self.rapid_fire_timer = 0.0;
         self.bunkers = build_bunkers();
         self.aliens = build_aliens();
-        self.formation_x = config::ALIEN_START_X;
+        self.formation_x = formation_start_x();
         self.formation_y = config::ALIEN_START_Y + (self.wave as f32 - 1.0) * 12.0;
         self.alien_dir = 1.0;
         self.march_progress = 0.0;
@@ -2276,10 +2552,10 @@ impl GameApp {
 
     fn spawn_enemy_explosion(&mut self, center: Vec2, color: Color) {
         self.play_enemy_explosion_sound();
-        self.screen_shake = self.screen_shake.max(13.0);
-        self.spawn_radial_burst(center, 24, color, 260.0, 1.0);
+        self.screen_shake = self.screen_shake.max(14.0);
+        self.spawn_radial_burst(center, 30, color, 280.0, 1.0);
         self.spawn_radial_burst(center, 14, config::ACCENT_C, 180.0, 0.78);
-        self.spawn_radial_burst(center, 10, WHITE, 120.0, 0.35);
+        self.spawn_radial_burst(center, 14, WHITE, 145.0, 0.42);
         self.blast_waves.push(BlastWave {
             center,
             radius: 6.0,
@@ -2288,8 +2564,8 @@ impl GameApp {
     }
 
     fn spawn_impact(&mut self, center: Vec2, color: Color) {
-        self.spawn_radial_burst(center, 12, color, 150.0, 0.45);
-        self.spawn_radial_burst(center, 5, WHITE, 95.0, 0.22);
+        self.spawn_radial_burst(center, 15, color, 165.0, 0.48);
+        self.spawn_radial_burst(center, 8, WHITE, 118.0, 0.28);
     }
 
     fn explode_player_bomb(&mut self, center: Vec2) {
@@ -2348,16 +2624,16 @@ impl GameApp {
 
     fn damage_player(&mut self) {
         self.player.hit_flash = 1.0;
-        self.screen_shake = self.screen_shake.max(14.0);
+        self.screen_shake = self.screen_shake.max(16.0);
         self.play_player_hit_sound();
         self.spawn_radial_burst(
             vec2(
                 self.player.x,
                 config::WINDOW_HEIGHT - config::PLAYER_Y_OFFSET,
             ),
-            20,
+            26,
             config::ACCENT_B,
-            230.0,
+            250.0,
             0.95,
         );
 
@@ -2449,7 +2725,7 @@ impl GameApp {
         let alive = self.alive_aliens() as f32;
         let tension = 1.0 - alive / total;
         let mut interval =
-            (config::ENEMY_FIRE_BASE_INTERVAL - tension * 0.72 - self.wave as f32 * 0.05)
+            (config::ENEMY_FIRE_BASE_INTERVAL - tension * 0.78 - self.wave as f32 * 0.05)
                 .max(config::ENEMY_FIRE_MIN_INTERVAL);
         if self
             .shots
@@ -2635,8 +2911,12 @@ impl Bunker {
                 if hp == 0 {
                     continue;
                 }
-                let x = self.origin.x + col as f32 * config::BUNKER_CELL + offset.x;
-                let y = self.origin.y + row as f32 * config::BUNKER_CELL + offset.y;
+                let damage = 3 - hp;
+                let inset = damage as f32 * 0.9;
+                let x = self.origin.x + col as f32 * config::BUNKER_CELL + offset.x + inset * 0.4;
+                let y = self.origin.y + row as f32 * config::BUNKER_CELL + offset.y + inset * 0.25;
+                let cell_w = (config::BUNKER_CELL - 1.5 - inset).max(6.0);
+                let cell_h = (config::BUNKER_CELL - 1.5 - inset * 0.9).max(6.0);
                 let base = match hp {
                     3 => config::BUNKER_COLOR,
                     2 => Color::from_rgba(238, 225, 108, 255),
@@ -2646,78 +2926,93 @@ impl Bunker {
                 let shadow = mix_color(base, BLACK, 0.32);
                 let side_facet = mix_color(base, BLACK, 0.16);
                 let top_facet = mix_color(base, WHITE, 0.34);
-                draw_rectangle(
-                    x,
-                    y,
-                    config::BUNKER_CELL - 1.5,
-                    config::BUNKER_CELL - 1.5,
-                    base,
-                );
+                draw_rectangle(x, y, cell_w, cell_h, base);
                 draw_rectangle(
                     x + 2.0,
                     y + 5.0,
-                    config::BUNKER_CELL - 4.5,
-                    config::BUNKER_CELL - 7.0,
+                    (cell_w - 3.0).max(3.0),
+                    (cell_h - 6.0).max(3.0),
                     Color::new(shadow.r, shadow.g, shadow.b, 0.85),
                 );
                 draw_rectangle(
-                    x + config::BUNKER_CELL - 6.0,
+                    x + cell_w - 5.0,
                     y + 2.0,
                     4.0,
-                    config::BUNKER_CELL - 6.0,
+                    (cell_h - 6.0).max(2.0),
                     Color::new(side_facet.r, side_facet.g, side_facet.b, 0.95),
                 );
                 draw_rectangle(
                     x + 1.0,
                     y + 1.0,
-                    config::BUNKER_CELL - 4.0,
+                    (cell_w - 3.0).max(2.0),
                     3.0,
                     Color::new(bevel.r, bevel.g, bevel.b, 0.82),
                 );
                 draw_rectangle(
                     x + 2.0,
                     y + 2.0,
-                    config::BUNKER_CELL - 7.0,
+                    (cell_w - 6.0).max(1.0),
                     2.0,
                     Color::new(top_facet.r, top_facet.g, top_facet.b, 0.9),
                 );
                 draw_rectangle(
                     x - 1.0,
                     y - 1.0,
-                    config::BUNKER_CELL + 0.5,
-                    config::BUNKER_CELL + 0.5,
+                    cell_w + 1.5,
+                    cell_h + 1.5,
                     Color::new(base.r, base.g, base.b, 0.12),
                 );
+                if hp == 3 {
+                    draw_glow_circle(
+                        x + cell_w * 0.5,
+                        y + cell_h * 0.45,
+                        8.0,
+                        Color::new(base.r, base.g, base.b, 0.08),
+                    );
+                }
                 if hp <= 2 {
                     draw_line(
                         x + 3.0,
                         y + 3.0,
-                        x + config::BUNKER_CELL - 4.0,
-                        y + config::BUNKER_CELL - 5.0,
+                        x + cell_w - 3.0,
+                        y + cell_h - 4.0,
                         1.6,
                         Color::from_rgba(24, 16, 12, 160),
                     );
                     draw_line(
-                        x + config::BUNKER_CELL - 6.0,
+                        x + cell_w - 5.0,
                         y + 4.0,
                         x + 5.0,
-                        y + config::BUNKER_CELL - 4.0,
+                        y + cell_h - 3.0,
                         1.2,
                         Color::from_rgba(255, 255, 255, 44),
+                    );
+                    draw_circle(
+                        x + cell_w * 0.74,
+                        y + cell_h * 0.3,
+                        1.6,
+                        Color::from_rgba(28, 18, 16, 180),
                     );
                 }
                 if hp == 1 {
                     draw_circle(
-                        x + config::BUNKER_CELL * 0.55,
-                        y + config::BUNKER_CELL * 0.52,
+                        x + cell_w * 0.55,
+                        y + cell_h * 0.52,
                         3.4,
                         Color::from_rgba(18, 10, 8, 210),
                     );
                     draw_circle(
-                        x + config::BUNKER_CELL * 0.22,
-                        y + config::BUNKER_CELL * 0.72,
+                        x + cell_w * 0.22,
+                        y + cell_h * 0.72,
                         2.2,
                         Color::from_rgba(24, 12, 10, 170),
+                    );
+                    draw_rectangle(
+                        x + cell_w - 4.0,
+                        y + 1.5,
+                        2.5,
+                        4.0,
+                        Color::from_rgba(14, 8, 6, 170),
                     );
                 }
             }
@@ -2748,8 +3043,10 @@ fn build_aliens() -> Vec<Alien> {
 
 fn build_bunkers() -> Vec<Bunker> {
     let mut bunkers = Vec::with_capacity(config::BUNKER_COUNT);
-    let start_x = 214.0;
-    let spacing = (config::WINDOW_WIDTH - start_x * 2.0) / (config::BUNKER_COUNT - 1) as f32;
+    let bunker_width = config::BUNKER_GRID_W as f32 * config::BUNKER_CELL;
+    let group_width = bunker_width * config::BUNKER_COUNT as f32;
+    let gap =
+        ((config::WINDOW_WIDTH - group_width) / (config::BUNKER_COUNT as f32 + 1.0)).max(82.0);
     for i in 0..config::BUNKER_COUNT {
         let mut cells = [[0u8; config::BUNKER_GRID_W]; config::BUNKER_GRID_H];
         for (row, row_cells) in cells.iter_mut().enumerate() {
@@ -2763,7 +3060,7 @@ fn build_bunkers() -> Vec<Bunker> {
             }
         }
         bunkers.push(Bunker {
-            origin: vec2(start_x + i as f32 * spacing, config::BUNKER_Y),
+            origin: vec2(gap + i as f32 * (bunker_width + gap), config::BUNKER_Y),
             cells,
         });
     }
@@ -2836,6 +3133,17 @@ fn draw_shot(shot: Shot, offset: Vec2) {
                     Color::from_rgba(255, 220, 150, ((70.0 + flicker * 60.0).round()) as u8),
                 );
             }
+            draw_glow_circle(
+                pos.x,
+                pos.y,
+                shot.size.x * if shot.from_player { 2.0 } else { 2.35 },
+                Color::new(
+                    color.r,
+                    color.g,
+                    color.b,
+                    if shot.from_player { 0.10 } else { 0.14 },
+                ),
+            );
             draw_rectangle(
                 pos.x - shot.size.x * 1.2,
                 pos.y - shot.size.y * 0.5,
@@ -2871,13 +3179,13 @@ fn draw_shot(shot: Shot, offset: Vec2) {
         }
         ShotKind::EnemyBomb => {
             let pulse = (get_time() as f32 * 10.0 + shot.pos.y * 0.04).sin() * 0.5 + 0.5;
-            draw_circle(
+            draw_glow_circle(
                 pos.x,
                 pos.y,
                 shot.size.x * (1.65 + pulse * 0.2),
                 Color::from_rgba(255, 82, 72, (34.0 + pulse * 22.0).round() as u8),
             );
-            draw_circle(
+            draw_glow_circle(
                 pos.x,
                 pos.y,
                 shot.size.x * 1.15,
@@ -2904,7 +3212,7 @@ fn draw_shot(shot: Shot, offset: Vec2) {
         }
         ShotKind::PlayerBomb => {
             let pulse = (get_time() as f32 * 14.0 + shot.pos.y * 0.05).sin() * 0.5 + 0.5;
-            draw_circle(
+            draw_glow_circle(
                 pos.x,
                 pos.y,
                 shot.size.x * (1.3 + pulse * 0.16),
@@ -2949,6 +3257,12 @@ fn alien_score(row: usize) -> u32 {
     }
 }
 
+fn formation_start_x() -> f32 {
+    let formation_width = (config::ALIEN_COLS - 1) as f32 * config::ALIEN_SPACING_X;
+    config::ALIEN_START_X
+        + (config::WINDOW_WIDTH * 0.5 - (config::ALIEN_START_X + formation_width * 0.5))
+}
+
 fn alien_color(row: usize) -> Color {
     config::ALIEN_ROW_COLORS[row]
 }
@@ -2960,6 +3274,21 @@ fn mix_color(a: Color, b: Color, t: f32) -> Color {
         a.b + (b.b - a.b) * t,
         a.a + (b.a - a.a) * t,
     )
+}
+
+fn draw_glow_circle(x: f32, y: f32, radius: f32, color: Color) {
+    draw_circle(
+        x,
+        y,
+        radius,
+        Color::new(color.r, color.g, color.b, color.a * 0.45),
+    );
+    draw_circle(
+        x,
+        y,
+        radius * 0.6,
+        Color::new(color.r, color.g, color.b, color.a * 0.28),
+    );
 }
 
 fn arcade_text(text: &str, x: f32, y: f32, font_size: f32, color: Color, centered: bool) {
@@ -3058,17 +3387,63 @@ fn arcade_title(text: &str, x: f32, y: f32, font_size: f32, color: Color, center
     );
 }
 
-fn draw_arcade_panel(x: f32, y: f32, w: f32, h: f32, color: Color) {
-    draw_rectangle(x, y, w, h, Color::from_rgba(7, 8, 24, 190));
-    draw_rectangle_lines(x, y, w, h, 2.0, Color::from_rgba(255, 255, 255, 30));
+fn draw_hud_card(x: f32, y: f32, w: f32, h: f32, color: Color) {
+    draw_rectangle(x, y, w, h, config::HUD_PANEL_BG);
+    draw_rectangle(
+        x + 6.0,
+        y + 6.0,
+        w - 12.0,
+        14.0,
+        Color::new(
+            config::HUD_PANEL_INNER.r,
+            config::HUD_PANEL_INNER.g,
+            config::HUD_PANEL_INNER.b,
+            0.65,
+        ),
+    );
+    draw_rectangle(
+        x + 10.0,
+        y + h - 14.0,
+        w - 20.0,
+        4.0,
+        Color::new(color.r, color.g, color.b, 0.18),
+    );
+    draw_rectangle_lines(x, y, w, h, 2.0, Color::from_rgba(255, 255, 255, 24));
     draw_rectangle_lines(
         x + 4.0,
         y + 4.0,
         w - 8.0,
         h - 8.0,
         2.0,
-        Color::new(color.r, color.g, color.b, 0.75),
+        Color::new(color.r, color.g, color.b, 0.78),
     );
+    draw_line(
+        x + 10.0,
+        y + 10.0,
+        x + w - 10.0,
+        y + 10.0,
+        1.0,
+        Color::new(
+            config::HUD_PANEL_EDGE.r,
+            config::HUD_PANEL_EDGE.g,
+            config::HUD_PANEL_EDGE.b,
+            0.3,
+        ),
+    );
+}
+
+fn draw_holo_frame(x: f32, y: f32, w: f32, h: f32, color: Color) {
+    draw_glow_circle(
+        x + w * 0.5,
+        y + h * 0.5,
+        w.max(h) * 0.42,
+        Color::new(color.r, color.g, color.b, 0.04),
+    );
+    draw_hud_card(x, y, w, h, color);
+    draw_line(x + 26.0, y, x + 120.0, y, 3.0, color);
+    draw_line(x, y + 24.0, x, y + 110.0, 3.0, color);
+    draw_line(x + w - 120.0, y + h, x + w - 26.0, y + h, 3.0, color);
+    draw_line(x + w, y + h - 110.0, x + w, y + h - 24.0, 3.0, color);
 }
 
 fn profiles_path() -> Option<PathBuf> {
