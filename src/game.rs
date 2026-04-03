@@ -123,6 +123,7 @@ pub struct GameApp {
     pass_count: u32,
     dive_timer: f32,
     sounds: Option<SoundBank>,
+    render_target: RenderTarget,
 }
 
 impl GameApp {
@@ -171,7 +172,9 @@ impl GameApp {
             pass_count: 0,
             dive_timer: config::ALIEN_DIVE_BASE_INTERVAL,
             sounds: SoundBank::load().await,
+            render_target: render_target(config::WINDOW_WIDTH as u32, config::WINDOW_HEIGHT as u32),
         };
+        app.render_target.texture.set_filter(FilterMode::Linear);
         if app.profiles.is_empty() {
             app.entering_name = true;
         }
@@ -204,19 +207,17 @@ impl GameApp {
         let (viewport, scale) = self.viewport_frame();
         self.draw_letterbox_backdrop(viewport, scale);
 
-        let mut camera = Camera2D::from_display_rect(Rect::new(
-            0.0,
-            0.0,
-            config::WINDOW_WIDTH,
-            config::WINDOW_HEIGHT,
-        ));
-        camera.viewport = Some((
-            viewport.x.round() as i32,
-            viewport.y.round() as i32,
-            (config::WINDOW_WIDTH * scale).round() as i32,
-            (config::WINDOW_HEIGHT * scale).round() as i32,
-        ));
+        let camera = Camera2D {
+            render_target: Some(self.render_target.clone()),
+            ..Camera2D::from_display_rect(Rect::new(
+                0.0,
+                0.0,
+                config::WINDOW_WIDTH,
+                config::WINDOW_HEIGHT,
+            ))
+        };
         set_camera(&camera);
+        clear_background(Color::from_rgba(3, 5, 16, 255));
         self.draw_background(Vec2::ZERO);
 
         let shake = if self.screen_shake > 0.0 {
@@ -232,6 +233,20 @@ impl GameApp {
         self.draw_hud(Vec2::ZERO);
         self.draw_overlay(Vec2::ZERO);
         set_default_camera();
+        draw_texture_ex(
+            &self.render_target.texture,
+            viewport.x,
+            viewport.y,
+            WHITE,
+            DrawTextureParams {
+                dest_size: Some(vec2(
+                    config::WINDOW_WIDTH * scale,
+                    config::WINDOW_HEIGHT * scale,
+                )),
+                flip_y: true,
+                ..Default::default()
+            },
+        );
         self.draw_viewport_frame(viewport, scale);
     }
 
