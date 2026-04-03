@@ -1,6 +1,6 @@
 # Neon Invaders
 
-Neon Invaders is a modernized Space Invaders-style arcade shooter written in Rust with `macroquad` for Linux. It keeps the classic loop intact while adding smoother motion, colorful alien variants, destructible bunkers, particles, screen shake, a drifting starfield, local high score saving, and title / wave / game-over transitions.
+Neon Invaders is a modernized Space Invaders-style arcade shooter written in Rust with `macroquad`. It keeps the classic loop intact while adding smoother motion, colorful alien variants, destructible bunkers, particles, screen shake, a drifting starfield, local profile saving, and title / wave / game-over transitions.
 
 ## Features
 
@@ -8,8 +8,9 @@ Neon Invaders is a modernized Space Invaders-style arcade shooter written in Rus
 - Side-to-side invading formation that reverses at screen edges and steps downward
 - Alien return fire that grows more intense as the formation thins out
 - Destructible bunkers that degrade visibly and change the battle flow
-- Score, lives, wave progression, and local high score persistence
+- Score, lives, wave progression, local player profiles, and persistent high scores
 - Procedural neon-style visuals built from shapes with no external art assets
+- Linux-native development flow with Windows cross-compilation support from Linux
 
 ## Build And Run On Linux
 
@@ -33,22 +34,67 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo build
 ```
 
+## Cross-Compile For Windows From Linux
+
+Install the Windows GNU target and MinGW cross toolchain:
+
+```bash
+rustup target add x86_64-pc-windows-gnu
+```
+
+On Debian / Ubuntu:
+
+```bash
+sudo apt install mingw-w64
+```
+
+Then build a Windows executable from Linux:
+
+```bash
+cargo build --release --target x86_64-pc-windows-gnu
+```
+
+The project includes `.cargo/config.toml` for the common MinGW linker:
+
+```toml
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+```
+
+Expected output:
+
+```text
+target/x86_64-pc-windows-gnu/release/invaders.exe
+```
+
+Cross-compiling is enough to produce a Windows build, but you should still test the final `.exe` on a real Windows machine or Windows CI runner for runtime validation.
+
 ## Controls
 
 - `A` / `D` or Left / Right: move
-- `Space` or Up: fire
-- `Space` or Enter: start / restart from menus
+- `Space`: fire
+- `Up`: launch player bomb
+- `Esc`: quit from title, pause in-game, return to title from pause / game over
+- `Space` or `Enter`: start / restart from menus
+- `N`: add a new player on the title screen
+- `Up` / `Down`: select an existing player on the title screen
 
-## High Score Save Location
+## Profile Save Location
 
-The high score is stored locally at:
+Linux:
 
 ```text
-$XDG_DATA_HOME/neon-invaders/highscore.txt
+$XDG_DATA_HOME/neon-invaders/profiles.txt
 ```
 
 If `XDG_DATA_HOME` is not set, the game falls back to:
 
 ```text
-~/.local/share/neon-invaders/highscore.txt
+~/.local/share/neon-invaders/profiles.txt
+```
+
+Windows:
+
+```text
+%APPDATA%\Neon Invaders\profiles.txt
 ```
