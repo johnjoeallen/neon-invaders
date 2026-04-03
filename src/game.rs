@@ -3072,12 +3072,21 @@ fn draw_arcade_panel(x: f32, y: f32, w: f32, h: f32, color: Color) {
 }
 
 fn profiles_path() -> Option<PathBuf> {
-    let base = std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
-        })?;
-    Some(base.join("neon-invaders").join("profiles.txt"))
+    #[cfg(target_os = "windows")]
+    {
+        let base = std::env::var_os("APPDATA").map(PathBuf::from)?;
+        return Some(base.join("Neon Invaders").join("profiles.txt"));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let base = std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
+            })?;
+        Some(base.join("neon-invaders").join("profiles.txt"))
+    }
 }
 
 fn load_profiles() -> Vec<PlayerProfile> {
