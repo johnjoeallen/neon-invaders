@@ -552,6 +552,20 @@ impl GameApp {
                 particle.color.b,
                 0.18 * t,
             );
+            let trail = particle.pos - particle.vel.normalize_or_zero() * particle.size * 2.6;
+            draw_line(
+                particle.pos.x + offset.x,
+                particle.pos.y + offset.y,
+                trail.x + offset.x,
+                trail.y + offset.y,
+                particle.size * (0.55 + t * 0.35),
+                Color::new(
+                    particle.color.r,
+                    particle.color.g,
+                    particle.color.b,
+                    0.22 * t,
+                ),
+            );
             draw_circle(
                 particle.pos.x + offset.x,
                 particle.pos.y + offset.y,
@@ -903,6 +917,23 @@ impl GameApp {
             }
         }
 
+        for (x, y, r, color) in [
+            (220.0, 120.0, 150.0, Color::from_rgba(255, 92, 84, 14)),
+            (720.0, 210.0, 190.0, Color::from_rgba(90, 148, 255, 12)),
+            (1240.0, 160.0, 170.0, Color::from_rgba(118, 255, 190, 10)),
+            (1700.0, 240.0, 220.0, Color::from_rgba(255, 208, 94, 10)),
+        ] {
+            draw_circle(x, y, r, color);
+        }
+        for x in [140.0, 460.0, 820.0, 1180.0, 1520.0, 1830.0] {
+            draw_rectangle(
+                x,
+                0.0,
+                1.5,
+                config::WINDOW_HEIGHT,
+                Color::from_rgba(255, 255, 255, 8),
+            );
+        }
         draw_rectangle(
             0.0,
             config::WINDOW_HEIGHT - 210.0,
@@ -928,7 +959,14 @@ impl GameApp {
         let underside = mix_color(color, BLACK, 0.42);
         let warm_panel = Color::from_rgba(255, 110, 82, 255);
         let cool_panel = Color::from_rgba(118, 232, 255, 255);
+        let rim = mix_color(color, WHITE, 0.55);
         draw_circle(rect.center().x, rect.center().y + 6.0, 52.0, glow);
+        draw_circle(
+            rect.center().x,
+            rect.center().y + 10.0,
+            28.0,
+            Color::new(warm_panel.r, warm_panel.g, warm_panel.b, 0.12),
+        );
         draw_triangle(
             vec2(rect.x + rect.w * 0.5, rect.y - 4.0),
             vec2(rect.x + 20.0, rect.y + rect.h + 12.0),
@@ -975,6 +1013,14 @@ impl GameApp {
             10.0,
             cool_panel,
         );
+        draw_line(
+            rect.x + rect.w * 0.5,
+            rect.y - 14.0,
+            rect.x + rect.w * 0.5,
+            rect.y + rect.h + 2.0,
+            2.0,
+            Color::new(rim.r, rim.g, rim.b, 0.65),
+        );
         draw_triangle(
             vec2(rect.x + 20.0, rect.y + rect.h + 2.0),
             vec2(rect.x + 34.0, rect.y + 10.0),
@@ -998,6 +1044,18 @@ impl GameApp {
             vec2(rect.x + rect.w - 34.0, rect.y + 18.0),
             vec2(rect.x + rect.w - 36.0, rect.y + rect.h + 1.0),
             warm_panel,
+        );
+        draw_circle(
+            rect.x + 26.0,
+            rect.y + rect.h + 1.0,
+            4.0,
+            Color::from_rgba(255, 188, 92, 180),
+        );
+        draw_circle(
+            rect.x + rect.w - 26.0,
+            rect.y + rect.h + 1.0,
+            4.0,
+            Color::from_rgba(255, 188, 92, 180),
         );
         draw_line(
             rect.x + 12.0,
@@ -2046,12 +2104,20 @@ impl GameApp {
 
     fn spawn_enemy_explosion(&mut self, center: Vec2, color: Color) {
         self.play_enemy_explosion_sound();
-        self.spawn_radial_burst(center, 18, color, 220.0, 0.9);
-        self.spawn_radial_burst(center, 10, config::ACCENT_C, 140.0, 0.6);
+        self.screen_shake = self.screen_shake.max(13.0);
+        self.spawn_radial_burst(center, 24, color, 260.0, 1.0);
+        self.spawn_radial_burst(center, 14, config::ACCENT_C, 180.0, 0.78);
+        self.spawn_radial_burst(center, 10, WHITE, 120.0, 0.35);
+        self.blast_waves.push(BlastWave {
+            center,
+            radius: 6.0,
+            hit_player: true,
+        });
     }
 
     fn spawn_impact(&mut self, center: Vec2, color: Color) {
-        self.spawn_radial_burst(center, 8, color, 120.0, 0.35);
+        self.spawn_radial_burst(center, 12, color, 150.0, 0.45);
+        self.spawn_radial_burst(center, 5, WHITE, 95.0, 0.22);
     }
 
     fn explode_player_bomb(&mut self, center: Vec2) {
@@ -2401,8 +2467,8 @@ impl Bunker {
                 let y = self.origin.y + row as f32 * config::BUNKER_CELL + offset.y;
                 let base = match hp {
                     3 => config::BUNKER_COLOR,
-                    2 => Color::from_rgba(151, 239, 111, 255),
-                    _ => Color::from_rgba(255, 166, 110, 255),
+                    2 => Color::from_rgba(238, 225, 108, 255),
+                    _ => Color::from_rgba(255, 112, 94, 255),
                 };
                 let bevel = mix_color(base, WHITE, 0.22);
                 let shadow = mix_color(base, BLACK, 0.32);
@@ -2450,6 +2516,38 @@ impl Bunker {
                     config::BUNKER_CELL + 0.5,
                     Color::new(base.r, base.g, base.b, 0.12),
                 );
+                if hp <= 2 {
+                    draw_line(
+                        x + 3.0,
+                        y + 3.0,
+                        x + config::BUNKER_CELL - 4.0,
+                        y + config::BUNKER_CELL - 5.0,
+                        1.6,
+                        Color::from_rgba(24, 16, 12, 160),
+                    );
+                    draw_line(
+                        x + config::BUNKER_CELL - 6.0,
+                        y + 4.0,
+                        x + 5.0,
+                        y + config::BUNKER_CELL - 4.0,
+                        1.2,
+                        Color::from_rgba(255, 255, 255, 44),
+                    );
+                }
+                if hp == 1 {
+                    draw_circle(
+                        x + config::BUNKER_CELL * 0.55,
+                        y + config::BUNKER_CELL * 0.52,
+                        3.4,
+                        Color::from_rgba(18, 10, 8, 210),
+                    );
+                    draw_circle(
+                        x + config::BUNKER_CELL * 0.22,
+                        y + config::BUNKER_CELL * 0.72,
+                        2.2,
+                        Color::from_rgba(24, 12, 10, 170),
+                    );
+                }
             }
         }
     }
@@ -2478,7 +2576,8 @@ fn build_aliens() -> Vec<Alien> {
 
 fn build_bunkers() -> Vec<Bunker> {
     let mut bunkers = Vec::with_capacity(config::BUNKER_COUNT);
-    let spacing = (config::WINDOW_WIDTH - 360.0) / (config::BUNKER_COUNT - 1) as f32;
+    let start_x = 214.0;
+    let spacing = (config::WINDOW_WIDTH - start_x * 2.0) / (config::BUNKER_COUNT - 1) as f32;
     for i in 0..config::BUNKER_COUNT {
         let mut cells = [[0u8; config::BUNKER_GRID_W]; config::BUNKER_GRID_H];
         for (row, row_cells) in cells.iter_mut().enumerate() {
@@ -2492,7 +2591,7 @@ fn build_bunkers() -> Vec<Bunker> {
             }
         }
         bunkers.push(Bunker {
-            origin: vec2(180.0 + i as f32 * spacing, config::BUNKER_Y),
+            origin: vec2(start_x + i as f32 * spacing, config::BUNKER_Y),
             cells,
         });
     }
@@ -2549,6 +2648,14 @@ fn draw_shot(shot: Shot, offset: Vec2) {
                     trail_h,
                     Color::new(color.r, color.g, color.b, 0.10 + flicker * 0.08),
                 );
+                draw_line(
+                    pos.x,
+                    pos.y - trail_h,
+                    pos.x,
+                    pos.y + shot.size.y * 0.4,
+                    3.0,
+                    Color::new(color.r, color.g, color.b, 0.18 + flicker * 0.1),
+                );
                 draw_rectangle(
                     pos.x - shot.size.x * 0.9,
                     pos.y - trail_h * 0.68,
@@ -2563,6 +2670,17 @@ fn draw_shot(shot: Shot, offset: Vec2) {
                 shot.size.x * 2.4,
                 shot.size.y,
                 glow,
+            );
+            draw_circle(
+                pos.x,
+                pos.y,
+                shot.size.x * if shot.from_player { 0.9 } else { 1.1 },
+                Color::new(
+                    core.r,
+                    core.g,
+                    core.b,
+                    if shot.from_player { 0.2 } else { 0.28 },
+                ),
             );
             draw_rectangle(
                 pos.x - shot.size.x * 0.5,
@@ -2613,11 +2731,12 @@ fn draw_shot(shot: Shot, offset: Vec2) {
             );
         }
         ShotKind::PlayerBomb => {
+            let pulse = (get_time() as f32 * 14.0 + shot.pos.y * 0.05).sin() * 0.5 + 0.5;
             draw_circle(
                 pos.x,
                 pos.y,
-                shot.size.x * 1.2,
-                Color::from_rgba(255, 214, 92, 42),
+                shot.size.x * (1.3 + pulse * 0.16),
+                Color::from_rgba(255, 214, 92, (38.0 + pulse * 24.0).round() as u8),
             );
             draw_circle(pos.x, pos.y, shot.size.x * 0.72, config::PLAYER_BOMB_COLOR);
             draw_circle(pos.x, pos.y, shot.size.x * 0.34, WHITE);
@@ -2628,6 +2747,14 @@ fn draw_shot(shot: Shot, offset: Vec2) {
                 pos.y + shot.size.y * 1.45,
                 4.0,
                 config::ACCENT_A,
+            );
+            draw_line(
+                pos.x,
+                pos.y + shot.size.y * 0.3,
+                pos.x,
+                pos.y + shot.size.y * 1.9,
+                6.0,
+                Color::from_rgba(100, 244, 255, (40.0 + pulse * 28.0).round() as u8),
             );
         }
     }
