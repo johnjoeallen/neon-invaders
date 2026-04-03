@@ -67,7 +67,7 @@ pub const WAVE_CLEAR_TIME: f32 = 1.4;
 pub const GAME_OVER_DELAY: f32 = 0.8;
 pub const BOMB_REWARD_WINDOW: f32 = 5.0;
 pub const BOMB_REWARD_KILLS: u32 = 4;
-pub const ROW_CLEAR_RAPID_FIRE_TIME: f32 = 5.0;
+pub const ROW_CLEAR_RAPID_FIRE_TIME: f32 = 10.0;
 
 pub const STAR_LAYER_COUNT: usize = 3;
 pub const STARS_PER_LAYER: usize = 48;

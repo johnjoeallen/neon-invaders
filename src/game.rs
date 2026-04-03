@@ -84,6 +84,12 @@ struct Star {
     alpha: f32,
 }
 
+#[derive(Clone)]
+struct PlayerProfile {
+    name: String,
+    high_score: u32,
+}
+
 pub struct GameApp {
     screen: ScreenState,
     state_timer: f32,
@@ -98,6 +104,10 @@ pub struct GameApp {
     particles: Vec<Particle>,
     blast_waves: Vec<BlastWave>,
     stars: Vec<Vec<Star>>,
+    profiles: Vec<PlayerProfile>,
+    current_player_idx: usize,
+    entering_name: bool,
+    name_input: String,
     score: u32,
     high_score: u32,
     lives: u32,
@@ -117,6 +127,12 @@ pub struct GameApp {
 
 impl GameApp {
     pub async fn new() -> Self {
+        let profiles = load_profiles();
+        let current_player_idx = 0;
+        let high_score = profiles
+            .get(current_player_idx)
+            .map(|profile| profile.high_score)
+            .unwrap_or(0);
         let mut app = Self {
             screen: ScreenState::Title,
             state_timer: 0.0,
@@ -136,8 +152,12 @@ impl GameApp {
             particles: Vec::with_capacity(config::PARTICLE_CAP),
             blast_waves: Vec::new(),
             stars: Vec::new(),
+            profiles,
+            current_player_idx,
+            entering_name: false,
+            name_input: String::new(),
             score: 0,
-            high_score: load_high_score(),
+            high_score,
             lives: 3,
             wave: 1,
             kill_window_timer: config::BOMB_REWARD_WINDOW,
@@ -152,6 +172,9 @@ impl GameApp {
             dive_timer: config::ALIEN_DIVE_BASE_INTERVAL,
             sounds: SoundBank::load().await,
         };
+        if app.profiles.is_empty() {
+            app.entering_name = true;
+        }
         app.reset_for_new_run();
         app.screen = ScreenState::Title;
         app
@@ -167,9 +190,12 @@ impl GameApp {
             ScreenState::GameOver => self.update_game_over(dt),
         }
 
-        if self.score > self.high_score {
+        if let Some(profile) = self.profiles.get_mut(self.current_player_idx)
+            && self.score > profile.high_score
+        {
+            profile.high_score = self.score;
             self.high_score = self.score;
-            save_high_score(self.high_score);
+            save_profiles(&self.profiles);
         }
     }
 
@@ -204,8 +230,73 @@ impl GameApp {
             process::exit(0);
         }
         self.idle_aliens(dt);
-        if is_key_pressed(KeyCode::Space) || is_key_pressed(KeyCode::Enter) {
+        if self.entering_name {
+            while let Some(ch) = get_char_pressed() {
+                if (ch.is_ascii_alphanumeric() || ch == ' ' || ch == '-' || ch == '_')
+                    && self.name_input.len() < 16
+                {
+                    self.name_input.push(ch);
+                }
+            }
+            if is_key_pressed(KeyCode::Backspace) {
+                self.name_input.pop();
+            }
+            if is_key_pressed(KeyCode::Enter) {
+                let name = self.name_input.trim();
+                if !name.is_empty() {
+                    if let Some(index) = self
+                        .profiles
+                        .iter()
+                        .position(|profile| profile.name.eq_ignore_ascii_case(name))
+                    {
+                        self.current_player_idx = index;
+                    } else {
+                        let profile = PlayerProfile {
+                            name: name.to_string(),
+                            high_score: 0,
+                        };
+                        self.profiles.push(profile);
+                        self.profiles.sort_by(|a, b| {
+                            b.high_score.cmp(&a.high_score).then(a.name.cmp(&b.name))
+                        });
+                        self.current_player_idx = self
+                            .profiles
+                            .iter()
+                            .position(|profile| profile.name.eq_ignore_ascii_case(name))
+                            .unwrap_or(0);
+                    }
+                    self.high_score = self.profiles[self.current_player_idx].high_score;
+                    self.entering_name = false;
+                    self.name_input.clear();
+                    save_profiles(&self.profiles);
+                }
+            }
+            return;
+        }
+        if !self.profiles.is_empty() {
+            if is_key_pressed(KeyCode::Up) {
+                if self.current_player_idx == 0 {
+                    self.current_player_idx = self.profiles.len() - 1;
+                } else {
+                    self.current_player_idx -= 1;
+                }
+                self.high_score = self.profiles[self.current_player_idx].high_score;
+            }
+            if is_key_pressed(KeyCode::Down) {
+                self.current_player_idx = (self.current_player_idx + 1) % self.profiles.len();
+                self.high_score = self.profiles[self.current_player_idx].high_score;
+            }
+        }
+        if is_key_pressed(KeyCode::N) {
+            self.entering_name = true;
+            self.name_input.clear();
+            return;
+        }
+        if (is_key_pressed(KeyCode::Space) || is_key_pressed(KeyCode::Enter))
+            && !self.profiles.is_empty()
+        {
             self.pending_restart = false;
+            self.high_score = self.profiles[self.current_player_idx].high_score;
             self.screen = ScreenState::WaveIntro;
             self.state_timer = 0.0;
         }
@@ -666,6 +757,16 @@ impl GameApp {
             config::ACCENT_B,
             false,
         );
+        if let Some(profile) = self.profiles.get(self.current_player_idx) {
+            arcade_text(
+                &format!("PILOT {}", profile.name.to_uppercase()),
+                38.0,
+                104.0,
+                20.0,
+                config::HUD_COLOR,
+                false,
+            );
+        }
 
         let lives_y = 56.0;
         arcade_text(
@@ -747,20 +848,91 @@ impl GameApp {
                     28.0,
                     config::ACCENT_C,
                 );
-                arcade_text_centered(
-                    "Move: A / D or Left / Right    Shot: Space    Bomb: Up    Quit: Esc",
-                    config::WINDOW_WIDTH * 0.5,
-                    380.0,
-                    22.0,
-                    config::HUD_COLOR,
-                );
-                arcade_text_centered(
-                    "Press Space to Start",
-                    config::WINDOW_WIDTH * 0.5,
-                    470.0 + self.state_timer.sin() * 8.0,
-                    34.0,
-                    config::ACCENT_C,
-                );
+                if self.entering_name {
+                    draw_arcade_panel(
+                        config::WINDOW_WIDTH * 0.5 - 280.0,
+                        350.0,
+                        560.0,
+                        150.0,
+                        config::ACCENT_A,
+                    );
+                    arcade_text_centered(
+                        "ENTER PILOT NAME",
+                        config::WINDOW_WIDTH * 0.5,
+                        402.0,
+                        32.0,
+                        config::ACCENT_A,
+                    );
+                    arcade_text_centered(
+                        &format!("{}_", self.name_input.to_uppercase()),
+                        config::WINDOW_WIDTH * 0.5,
+                        454.0,
+                        34.0,
+                        config::ACCENT_C,
+                    );
+                    arcade_text_centered(
+                        "Type name, then press Enter",
+                        config::WINDOW_WIDTH * 0.5,
+                        496.0,
+                        22.0,
+                        config::HUD_COLOR,
+                    );
+                } else {
+                    draw_arcade_panel(
+                        config::WINDOW_WIDTH * 0.5 - 320.0,
+                        338.0,
+                        640.0,
+                        228.0,
+                        config::ACCENT_B,
+                    );
+                    arcade_text_centered(
+                        "SELECT PILOT",
+                        config::WINDOW_WIDTH * 0.5,
+                        388.0,
+                        28.0,
+                        config::ACCENT_B,
+                    );
+                    for (i, profile) in self.profiles.iter().take(6).enumerate() {
+                        let y = 432.0 + i as f32 * 32.0;
+                        let selected = i == self.current_player_idx;
+                        arcade_text_centered(
+                            &format!(
+                                "{}   {:06}",
+                                profile.name.to_uppercase(),
+                                profile.high_score
+                            ),
+                            config::WINDOW_WIDTH * 0.5,
+                            y,
+                            24.0,
+                            if selected {
+                                config::ACCENT_C
+                            } else {
+                                config::HUD_COLOR
+                            },
+                        );
+                    }
+                    arcade_text_centered(
+                        "Up/Down: Select Pilot    N: New Pilot",
+                        config::WINDOW_WIDTH * 0.5,
+                        592.0,
+                        22.0,
+                        config::HUD_COLOR,
+                    );
+                    arcade_text_centered(
+                        "Move: A / D or Left / Right    Shot: Space    Bomb: Up    Quit: Esc",
+                        config::WINDOW_WIDTH * 0.5,
+                        644.0,
+                        22.0,
+                        config::HUD_COLOR,
+                    );
+                    arcade_text_centered(
+                        "Press Space to Start",
+                        config::WINDOW_WIDTH * 0.5,
+                        714.0 + self.state_timer.sin() * 8.0,
+                        34.0,
+                        config::ACCENT_C,
+                    );
+                }
             }
             ScreenState::WaveIntro => {
                 let alpha = (1.0 - self.state_timer / config::WAVE_INTRO_TIME).clamp(0.0, 1.0);
@@ -2899,31 +3071,59 @@ fn draw_arcade_panel(x: f32, y: f32, w: f32, h: f32, color: Color) {
     );
 }
 
-fn high_score_path() -> Option<PathBuf> {
+fn profiles_path() -> Option<PathBuf> {
     let base = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .or_else(|| {
             std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
         })?;
-    Some(base.join("neon-invaders").join("highscore.txt"))
+    Some(base.join("neon-invaders").join("profiles.txt"))
 }
 
-fn load_high_score() -> u32 {
-    let Some(path) = high_score_path() else {
-        return 0;
+fn load_profiles() -> Vec<PlayerProfile> {
+    let Some(path) = profiles_path() else {
+        return Vec::new();
     };
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|text| text.trim().parse::<u32>().ok())
-        .unwrap_or(0)
+    let mut profiles = Vec::new();
+    if let Ok(text) = fs::read_to_string(path) {
+        for line in text.lines() {
+            let mut parts = line.splitn(2, '\t');
+            let Some(name) = parts.next() else {
+                continue;
+            };
+            let Some(score_text) = parts.next() else {
+                continue;
+            };
+            let name = name.trim();
+            if name.is_empty() {
+                continue;
+            }
+            let Ok(high_score) = score_text.trim().parse::<u32>() else {
+                continue;
+            };
+            profiles.push(PlayerProfile {
+                name: name.to_string(),
+                high_score,
+            });
+        }
+    }
+    profiles.sort_by(|a, b| b.high_score.cmp(&a.high_score).then(a.name.cmp(&b.name)));
+    profiles
 }
 
-fn save_high_score(score: u32) {
-    let Some(path) = high_score_path() else {
+fn save_profiles(profiles: &[PlayerProfile]) {
+    let Some(path) = profiles_path() else {
         return;
     };
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    let _ = fs::write(path, score.to_string());
+    let mut text = String::new();
+    for profile in profiles {
+        text.push_str(&profile.name.replace(['\n', '\t'], " "));
+        text.push('\t');
+        text.push_str(&profile.high_score.to_string());
+        text.push('\n');
+    }
+    let _ = fs::write(path, text);
 }
