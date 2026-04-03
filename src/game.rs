@@ -49,6 +49,7 @@ struct Alien {
     diving: bool,
     dive_pos: Vec2,
     dive_vel: Vec2,
+    dive_target_x: f32,
     dive_angle: f32,
 }
 
@@ -1837,9 +1838,11 @@ impl GameApp {
         let index = candidates[rand::gen_range(0, candidates.len())];
         let rect = self.alien_rect(self.aliens[index]);
         let center = rect.center();
-        let target_x = self.player.x + rand::gen_range(-80.0, 80.0);
+        let target_x = (self.player.x + rand::gen_range(-180.0, 180.0))
+            .clamp(60.0, config::WINDOW_WIDTH - 60.0);
         self.aliens[index].diving = true;
         self.aliens[index].dive_pos = center;
+        self.aliens[index].dive_target_x = target_x;
         self.aliens[index].dive_vel = vec2(
             (target_x - center.x) * 0.7,
             config::ALIEN_DIVE_SPEED + self.wave as f32 * 12.0,
@@ -1852,13 +1855,12 @@ impl GameApp {
 
     fn update_diving_aliens(&mut self, dt: f32) {
         let player_rect = self.player_rect();
-        let player_center = player_rect.center();
         let mut player_hit = false;
         for alien in &mut self.aliens {
             if !alien.alive || !alien.diving {
                 continue;
             }
-            let steer = (player_center.x - alien.dive_pos.x) * config::ALIEN_DIVE_TURN_RATE;
+            let steer = (alien.dive_target_x - alien.dive_pos.x) * config::ALIEN_DIVE_TURN_RATE;
             alien.dive_vel.x += steer * dt;
             alien.dive_pos += alien.dive_vel * dt;
             alien.dive_angle += config::ALIEN_DIVE_SPIN_SPEED * dt;
@@ -1890,6 +1892,7 @@ impl GameApp {
                 alien.diving = false;
                 alien.dive_pos = Vec2::ZERO;
                 alien.dive_vel = Vec2::ZERO;
+                alien.dive_target_x = 0.0;
                 alien.dive_angle = 0.0;
             }
         }
@@ -2444,6 +2447,7 @@ fn build_aliens() -> Vec<Alien> {
                 diving: false,
                 dive_pos: Vec2::ZERO,
                 dive_vel: Vec2::ZERO,
+                dive_target_x: 0.0,
                 dive_angle: 0.0,
             });
         }
