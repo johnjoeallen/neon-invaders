@@ -1856,7 +1856,8 @@ impl GameApp {
     fn update_diving_aliens(&mut self, dt: f32) {
         let player_rect = self.player_rect();
         let mut player_hit = false;
-        for alien in &mut self.aliens {
+        let mut bunker_crashes = Vec::new();
+        for (index, alien) in self.aliens.iter_mut().enumerate() {
             if !alien.alive || !alien.diving {
                 continue;
             }
@@ -1875,11 +1876,31 @@ impl GameApp {
                 player_hit = true;
                 break;
             }
+            let mut bunker_hit = false;
+            for bunker in &mut self.bunkers {
+                bunker_hit = bunker.damage_at_rect(dive_rect, true);
+                if bunker_hit {
+                    break;
+                }
+            }
+            if bunker_hit {
+                bunker_crashes.push((index, alien.dive_pos, alien.row));
+            }
         }
 
         if player_hit {
             self.trigger_game_over();
             return;
+        }
+
+        for (index, center, row) in bunker_crashes {
+            if self.aliens[index].alive && self.aliens[index].diving {
+                self.aliens[index].alive = false;
+                self.aliens[index].diving = false;
+                self.screen_shake = self.screen_shake.max(10.0);
+                self.spawn_radial_burst(center, 18, alien_color(row), 190.0, 0.7);
+                self.spawn_radial_burst(center, 12, config::BUNKER_COLOR, 150.0, 0.55);
+            }
         }
 
         for alien in &mut self.aliens {
