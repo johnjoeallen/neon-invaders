@@ -69,6 +69,23 @@ target/x86_64-pc-windows-gnu/release/invaders.exe
 
 Cross-compiling is enough to produce a Windows build, but you should still test the final `.exe` on a real Windows machine or Windows CI runner for runtime validation.
 
+## Remote Score Server
+
+A separate authenticated score backend scaffold lives in:
+
+```text
+score-server/
+```
+
+It provides:
+
+- email magic-link login
+- access and refresh tokens
+- leaderboard reads
+- authenticated score submission
+
+See [score-server/README.md](score-server/README.md) for setup and API examples.
+
 ## Controls
 
 - `A` / `D` or Left / Right: move
